@@ -138,9 +138,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: BlackDex RE ${{ steps.ver.outputs.name }} (build ${{ github.run_number }})
+          name: BlackDex RE ${{ steps.ver.outputs.name }}
           body: |
-            **BlackDex RE ${{ steps.ver.outputs.full }}**
+            **BlackDex RE ${{ steps.ver.outputs.name }}**
 
             Automated build of `main` @ ${{ github.sha }}.
             APKs attached below. The `release` APK is signed when repo signing secrets are set, otherwise it is `release-unsigned`.

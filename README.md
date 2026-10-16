@@ -7,7 +7,7 @@
 Extract the real `.dex` files from installed apps or APK files, directly from ART memory,
 with **no root, no Xposed, no PC, no adb**. Just install and tap.
 
-<img src="screenshots/icon.png" width="120" />
+<img src="screenshots/logo.png" width="160" alt="BlackDex RE logo" />
 
 [![Android](https://img.shields.io/badge/Android-13--17%20(API%2033--37)-3DDC84?logo=android&logoColor=white)](#)
 [![Arch](https://img.shields.io/badge/arch-arm64%20%2B%20arm32%20(universal)-blue)](#)

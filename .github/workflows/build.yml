@@ -42,9 +42,20 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Don't let the action install its default 'tools' package: Google removed it from the
+          # SDK repository, so `sdkmanager tools` fails with exit 1. We install what we need below.
+          packages: ""
 
-      - name: Install NDK and CMake
-        run: sdkmanager --install "ndk;27.0.12077973" "cmake;3.22.1"
+      - name: Install SDK packages (platform, build-tools, NDK, CMake)
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1"
 
       - name: Cache Gradle
         uses: gradle/actions/setup-gradle@v4

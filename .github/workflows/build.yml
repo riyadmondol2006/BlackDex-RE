@@ -76,19 +76,42 @@ jobs:
           BLACKDEX_KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --stacktrace --no-daemon
 
+      # The release version is the app's real versionName/versionCode, read straight from
+      # app/build.gradle so releases always match what the APK reports. A short build suffix
+      # (<versionCode>.<run number>) keeps each push's tag unique and ordered.
+      - name: Read app version
+        id: ver
+        run: |
+          name=$(sed -nE 's/.*versionName[[:space:]]+"([^"]+)".*/\1/p' app/build.gradle | head -n1)
+          code=$(sed -nE 's/.*versionCode[[:space:]]+([0-9]+).*/\1/p' app/build.gradle | head -n1)
+          [ -n "$name" ] || { echo "could not parse versionName"; exit 1; }
+          [ -n "$code" ] || { echo "could not parse versionCode"; exit 1; }
+          full="${name}+${code}.${GITHUB_RUN_NUMBER}"
+          # Git tags can't contain '+', so use a tag-safe form.
+          tag="v${name}-${code}.${GITHUB_RUN_NUMBER}"
+          {
+            echo "name=$name"
+            echo "code=$code"
+            echo "full=$full"
+            echo "tag=$tag"
+          } >> "$GITHUB_OUTPUT"
+          echo "App version: $name ($code) -> release $full, tag $tag"
+
       - name: Collect & rename APKs
         id: apks
+        env:
+          VER: ${{ steps.ver.outputs.name }}
         run: |
           mkdir -p dist
           sha="${GITHUB_SHA::7}"
           for f in app/build/outputs/apk/debug/*.apk; do
-            [ -e "$f" ] && cp "$f" "dist/BlackDex-RE-4.0.0-RE-debug-${sha}.apk"
+            [ -e "$f" ] && cp "$f" "dist/BlackDex-RE-${VER}-debug-${sha}.apk"
           done
           for f in app/build/outputs/apk/release/*.apk; do
             [ -e "$f" ] || continue
             case "$f" in
-              *unsigned*) cp "$f" "dist/BlackDex-RE-4.0.0-RE-release-unsigned-${sha}.apk" ;;
-              *)          cp "$f" "dist/BlackDex-RE-4.0.0-RE-release-${sha}.apk" ;;
+              *unsigned*) cp "$f" "dist/BlackDex-RE-${VER}-release-unsigned-${sha}.apk" ;;
+              *)          cp "$f" "dist/BlackDex-RE-${VER}-release-${sha}.apk" ;;
             esac
           done
           ls -l dist
@@ -107,16 +130,18 @@ jobs:
           path: dist/*release*.apk
           if-no-files-found: ignore
 
-      # Every push to the default branch cuts a fresh prerelease into the Releases tab,
-      # tagged build-<run number>, carrying the APKs built above. (PRs and feature-branch
-      # pushes do NOT create releases.)
+      # Every push to the default branch cuts a fresh release into the Releases tab, versioned
+      # with the app's real versionName (e.g. v4.0.0-RE-7.12), carrying the APKs built above.
+      # (PRs and feature-branch pushes do NOT create releases.)
       - name: Publish per-push Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: Build ${{ github.run_number }} (${{ github.sha }})
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: BlackDex RE ${{ steps.ver.outputs.name }} (build ${{ github.run_number }})
           body: |
+            **BlackDex RE ${{ steps.ver.outputs.full }}**
+
             Automated build of `main` @ ${{ github.sha }}.
             APKs attached below. The `release` APK is signed when repo signing secrets are set, otherwise it is `release-unsigned`.
           prerelease: false

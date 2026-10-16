@@ -119,8 +119,8 @@ jobs:
           body: |
             Automated build of `main` @ ${{ github.sha }}.
             APKs attached below. The `release` APK is signed when repo signing secrets are set, otherwise it is `release-unsigned`.
-          prerelease: true
-          make_latest: false
+          prerelease: false
+          make_latest: true
           files: dist/*.apk
 
       # A pushed v* tag cuts a full (non-prerelease) versioned release with generated notes.

@@ -96,7 +96,24 @@ jobs:
           path: dist/*release*.apk
           if-no-files-found: ignore
 
-      - name: Publish GitHub Release
+      # Every push to the default branch cuts a fresh prerelease into the Releases tab,
+      # tagged build-<run number>, carrying the APKs built above. (PRs and feature-branch
+      # pushes do NOT create releases.)
+      - name: Publish per-push Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }} (${{ github.sha }})
+          body: |
+            Automated build of `main` @ ${{ github.sha }}.
+            APKs attached below. The `release` APK is signed when repo signing secrets are set, otherwise it is `release-unsigned`.
+          prerelease: true
+          make_latest: false
+          files: dist/*.apk
+
+      # A pushed v* tag cuts a full (non-prerelease) versioned release with generated notes.
+      - name: Publish tagged Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:

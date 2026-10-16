@@ -48,8 +48,9 @@ public class BlackDexCore {
     }
 
     public InstallResult dumpDex(String packageName) {
+        BlackBoxCore.get().ensureServerAlive();
         InstallResult installResult = BlackBoxCore.get().installPackage(packageName);
-        if (installResult.success) {
+        if (installResult != null && installResult.success) {
             boolean b = BlackBoxCore.get().launchApk(packageName);
             if (!b) {
                 BlackBoxCore.get().uninstallPackage(installResult.packageName);
@@ -62,8 +63,9 @@ public class BlackDexCore {
     }
 
     public InstallResult dumpDex(File file) {
+        BlackBoxCore.get().ensureServerAlive();
         InstallResult installResult = BlackBoxCore.get().installPackage(file);
-        if (installResult.success) {
+        if (installResult != null && installResult.success) {
             boolean b = BlackBoxCore.get().launchApk(installResult.packageName);
             if (!b) {
                 BlackBoxCore.get().uninstallPackage(installResult.packageName);
@@ -76,8 +78,9 @@ public class BlackDexCore {
     }
 
     public InstallResult dumpDex(Uri file) {
+        BlackBoxCore.get().ensureServerAlive();
         InstallResult installResult = BlackBoxCore.get().installPackage(file);
-        if (installResult.success) {
+        if (installResult != null && installResult.success) {
             boolean b = BlackBoxCore.get().launchApk(installResult.packageName);
             if (!b) {
                 BlackBoxCore.get().uninstallPackage(installResult.packageName);
@@ -112,5 +115,19 @@ public class BlackDexCore {
     public boolean isExistDexFile(String packageName) {
         File[] files = new File(BlackBoxCore.get().getDexDumpDir(), packageName).listFiles();
         return files != null && files.length > 0;
+    }
+
+    /** True if this APK's native ABI matches the host runtime (or it has no native libs). */
+    public boolean isAbiSupported(File apk) {
+        try {
+            return top.niunaijun.blackbox.utils.AbiUtils.isSupport(apk);
+        } catch (Throwable e) {
+            return true;
+        }
+    }
+
+    /** "64-bit" or "32-bit" — the architecture this install runs guest apps in. */
+    public String getHostAbi() {
+        return BlackBoxCore.is64Bit() ? "64-bit (arm64-v8a)" : "32-bit (armeabi-v7a)";
     }
 }

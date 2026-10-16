@@ -593,6 +593,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 apkFile = new File(BEnvironment.getCacheDir(), UUID.randomUUID().toString() + ".apk");
                 InputStream inputStream = BlackBoxCore.getContext().getContentResolver().openInputStream(Uri.parse(file));
                 FileUtils.copyFile(inputStream, apkFile);
+                FileUtils.makeReadOnly(apkFile);
             } else {
                 apkFile = new File(file);
             }

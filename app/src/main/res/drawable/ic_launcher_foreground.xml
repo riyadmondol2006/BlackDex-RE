@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="1.0" android:scaleY="1.0" android:pivotX="54" android:pivotY="54">
+        <!-- rounded code card -->
+        <path android:fillColor="#FFFFFFFF"
+            android:pathData="M37,30 L71,30 A7,7 0 0 1 78,37 L78,58 A7,7 0 0 1 71,65 L37,65 A7,7 0 0 1 30,58 L30,37 A7,7 0 0 1 37,30 Z"/>
+        <!-- code chevron -->
+        <path android:fillColor="#FF2E3AA6"
+            android:pathData="M45,41 L38.5,47.5 L45,54 L48,51 L44.5,47.5 L48,44 Z"/>
+        <path android:fillColor="#FF2E3AA6"
+            android:pathData="M63,41 L69.5,47.5 L63,54 L60,51 L63.5,47.5 L60,44 Z"/>
+        <!-- dot row -->
+        <path android:fillColor="#FF5B6CF0"
+            android:pathData="M51,50 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"/>
+        <path android:fillColor="#FF5B6CF0"
+            android:pathData="M57,50 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"/>
+        <!-- extraction arrow (dump out) -->
+        <path android:fillColor="#FFFFFFFF"
+            android:pathData="M51,70 L57,70 L57,78 L62,78 L54,88 L46,78 L51,78 Z"/>
+    </group>
+</vector>

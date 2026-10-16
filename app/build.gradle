@@ -4,37 +4,43 @@ plugins {
 }
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion "30.0.3"
+    namespace 'top.niunaijun.blackdex'
+    compileSdk rootProject.ext.compileSdk
+    ndkVersion rootProject.ext.ndkVersion
 
     defaultConfig {
-        applicationId "top.niunaijun.blackdex"
-        minSdkVersion 21
-        targetSdkVersion 30
-        versionCode 6
-        versionName "3.2.0"
-
+        // Neutral application id (this is riyadm's fork). Packers such as Ijiami blocklist
+        // the original "top.niunaijun.blackdex" by name and refuse to unpack inside it.
+        applicationId "com.riyadm.dexre"
+        minSdkVersion rootProject.ext.minSdk
+        targetSdkVersion rootProject.ext.targetSdk
+        versionCode 7
+        versionName "4.0.0-RE"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        flavorDimensions "BlackDex32"
+        // Single universal APK: ship both 32-bit and 64-bit native libs.
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
+        vectorDrawables.useSupportLibrary = true
     }
 
-    productFlavors {
-        BlackDex32 {
-            applicationId "top.niunaijun.blackdexa32"
-            ndk {
-                abiFilters "armeabi-v7a"
-            }
-            resValue "string", "app_name", "BlackDex32"
-        }
+    // Release signing is driven entirely by environment variables so the keystore never lives
+    // in the repo. CI (see .github/workflows/build.yml) decodes a base64 keystore secret to a
+    // file and exports these. When BLACKDEX_KEYSTORE is unset/missing (e.g. a local build or a
+    // fork without secrets), the release APK is simply built unsigned instead of failing.
+    def releaseKeystore = System.getenv("BLACKDEX_KEYSTORE")
+    def hasReleaseKeystore = releaseKeystore != null && !releaseKeystore.isEmpty() && file(releaseKeystore).exists()
 
-        BlackDex64 {
-            applicationId "top.niunaijun.blackdexa64"
-            ndk {
-                abiFilters "arm64-v8a"
+    signingConfigs {
+        release {
+            if (hasReleaseKeystore) {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv("BLACKDEX_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("BLACKDEX_KEY_ALIAS")
+                keyPassword System.getenv("BLACKDEX_KEY_PASSWORD")
             }
-            resValue "string", "app_name", "BlackDex64"
         }
     }
 
@@ -50,56 +56,58 @@ android {
             debuggable false
             jniDebuggable false
             minifyEnabled false
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
-    buildFeatures{
+    buildFeatures {
         viewBinding true
+        buildConfig true
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+        resources {
+            excludes += ['META-INF/*.kotlin_module', 'META-INF/DEPENDENCIES']
+        }
     }
 }
 
 dependencies {
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'androidx.core:core-ktx:1.5.0'
-    implementation 'androidx.appcompat:appcompat:1.3.0'
-    implementation 'com.google.android.material:material:1.3.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
-    implementation 'androidx.preference:preference-ktx:1.1.1'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.preference:preference-ktx:1.2.1'
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
 
     implementation project(':Bcore')
 
     //coroutines
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
 
     //viewModel liveData  lifecycle
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1"
-    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.3.1"
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.1"
-
-    //third
-
-    implementation 'com.afollestad.material-dialogs:core:3.3.0'
-    implementation 'com.afollestad.material-dialogs:files:3.2.1'
-    //dialog
-    implementation 'com.github.nukc.stateview:kotlin:2.2.0'
-    //状态控制控件
-    implementation 'com.github.Ferfalk:SimpleSearchView:0.2.0'
-    //searchView
-
-    implementation  'com.umeng.umsdk:common:9.3.8'
-    implementation  'com.umeng.umsdk:asms:1.2.2'
-    //友盟
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
 
     testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }

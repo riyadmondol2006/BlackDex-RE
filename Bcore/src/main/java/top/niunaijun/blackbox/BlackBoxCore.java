@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.os.Process;
+import android.util.Log;
 
 import top.niunaijun.blackbox.app.configuration.ClientConfiguration;
 import top.niunaijun.blackbox.fake.delegate.ContentProviderDelegate;
@@ -21,6 +22,7 @@ import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback;
 import top.niunaijun.blackbox.fake.hook.HookManager;
 import top.niunaijun.blackbox.entity.pm.InstallOption;
 import top.niunaijun.blackbox.entity.pm.InstallResult;
+import top.niunaijun.blackbox.entity.AppConfig;
 import top.niunaijun.blackbox.core.system.DaemonService;
 import top.niunaijun.blackbox.utils.FileUtils;
 import top.niunaijun.blackbox.utils.ShellUtils;
@@ -75,11 +77,35 @@ public class BlackBoxCore extends ClientConfiguration {
         return sContext;
     }
 
+    /**
+     * Lift the hidden-API restrictions so the framework-internal reflection used across
+     * Bcore keeps working on modern Android.
+     *
+     * FreeReflection's {@code VMRuntime.setHiddenApiExemptions} trick is blocked from
+     * API 34+ (it became a core-platform API). LSPosed's HiddenApiBypass defeats that via
+     * a core-platform-domain caller, so it is tried first; FreeReflection is kept as a
+     * fallback for very old devices where HiddenApiBypass is unnecessary/unavailable.
+     */
+    private void unsealHiddenApi(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions("");
+            } catch (Throwable t) {
+                Log.w(TAG, "HiddenApiBypass failed, falling back to FreeReflection", t);
+            }
+        }
+        try {
+            Reflection.unseal(context);
+        } catch (Throwable ignored) {
+            // Best effort: on API 34+ this path is expected to fail and is covered above.
+        }
+    }
+
     public void doAttachBaseContext(Context context, ClientConfiguration clientConfiguration) {
         if (clientConfiguration == null) {
             throw new IllegalArgumentException("ClientConfiguration is null!");
         }
-        Reflection.unseal(context);
+        unsealHiddenApi(context);
         sContext = context;
         mClientConfiguration = clientConfiguration;
         mClientConfiguration.init();
@@ -126,6 +152,17 @@ public class BlackBoxCore extends ClientConfiguration {
         get().getService(ServiceManager.DUMP_MANAGER);
     }
 
+    /**
+     * Ensure the {@code :black} server process is alive and hosting the persistent
+     * foreground service, so Android's Cached Apps Freezer cannot freeze/kill it mid-dump.
+     * Call this from the main (foreground) process before install/launch.
+     */
+    public void ensureServerAlive() {
+        if (isMainProcess()) {
+            DaemonService.start(getContext());
+        }
+    }
+
     public static Object mainThread() {
         return ActivityThread.currentActivityThread.call();
     }
@@ -151,12 +188,24 @@ public class BlackBoxCore extends ClientConfiguration {
     }
 
     public boolean launchApk(String packageName) {
-        Intent launchIntentForPackage = getBPackageManager().getLaunchIntentForPackage(packageName, USER_ID);
-        if (launchIntentForPackage == null) {
-            return false;
+        // Resolve the app's main process name (defaults to the package name).
+        String processName = packageName;
+        try {
+            Intent launchIntentForPackage = getBPackageManager().getLaunchIntentForPackage(packageName, USER_ID);
+            if (launchIntentForPackage != null && launchIntentForPackage.getComponent() != null) {
+                android.content.pm.ActivityInfo ai = getBPackageManager().getActivityInfo(
+                        launchIntentForPackage.getComponent(), 0, USER_ID);
+                if (ai != null && ai.processName != null) {
+                    processName = ai.processName;
+                }
+            }
+        } catch (Throwable ignored) {
         }
-        startActivity(launchIntentForPackage, USER_ID);
-        return true;
+        // Dump without a stub Activity: the server spins up the guest process (held open by a
+        // foreground service), then binds the target Application and dumps its DEX over the
+        // process binder. Avoids the Activity-launch config-change crash and the proxy-process
+        // teardown race seen on Android 13+.
+        return getBActivityManager().dumpApp(packageName, processName, USER_ID);
     }
 
     public boolean isInstalled(String packageName) {

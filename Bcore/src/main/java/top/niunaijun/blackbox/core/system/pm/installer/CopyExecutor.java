@@ -51,6 +51,9 @@ public class CopyExecutor implements Executor {
                 } else {
                     FileUtils.copyFile(origFile, newFile);
                 }
+                // API 34+: the installed apk is loaded as a dex by the guest classloader,
+                // so it must be read-only.
+                FileUtils.makeReadOnly(newFile);
                 // update baseCodePath
                 ps.pkg.baseCodePath = newFile.getAbsolutePath();
             } catch (IOException e) {

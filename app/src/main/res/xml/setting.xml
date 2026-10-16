@@ -1,30 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <PreferenceCategory android:title="@string/appearance">
+        <ListPreference
+            android:icon="@drawable/ic_palette"
+            android:key="theme_mode"
+            android:title="@string/theme"
+            android:entries="@array/theme_entries"
+            android:entryValues="@array/theme_values"
+            android:defaultValue="-1" />
+        <SwitchPreferenceCompat
+            android:key="dynamic_color"
+            android:title="@string/dynamic_color"
+            android:summary="@string/dynamic_color_desc" />
+        <SwitchPreferenceCompat
+            android:icon="@drawable/ic_apps"
+            android:key="show_system_apps"
+            android:title="@string/show_system_apps"
+            android:summary="@string/show_system_apps_desc" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/file_save">
         <SwitchPreferenceCompat
-                android:disableDependentsState="true"
-                android:key="save_enable"
-                android:title="@string/use_default_file" />
+            android:disableDependentsState="true"
+            android:icon="@drawable/ic_folder_open"
+            android:key="save_enable"
+            android:summary="@string/use_default_file_desc"
+            android:title="@string/use_default_file" />
 
         <Preference
-                android:dependency="save_enable"
-                android:key="save_path"
-                android:title="@string/rewrite_file_path" />
+            android:dependency="save_enable"
+            android:key="save_path"
+            android:title="@string/rewrite_file_path" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/advanced_setting">
         <SwitchPreferenceCompat
-                android:key="hook_dump"
-                android:summary="@string/hook_dump_desc"
-                android:title="@string/hook_dump" />
+            android:icon="@drawable/ic_code"
+            android:key="hook_dump"
+            android:summary="@string/hook_dump_desc"
+            android:title="@string/hook_dump" />
         <SwitchPreferenceCompat
-                android:key="fix_code_item"
-                android:summary="@string/fix_code_item_desc"
-                android:title="@string/fix_code_item" />
-
-
+            android:key="fix_code_item"
+            android:summary="@string/fix_code_item_desc"
+            android:title="@string/fix_code_item" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/about">
+        <Preference
+            android:icon="@drawable/ic_apps"
+            android:key="about_version"
+            android:selectable="false"
+            android:title="@string/version" />
+        <Preference
+            android:key="about_source"
+            android:title="@string/open_source"
+            android:summary="https://github.com/riyadmondol2006/BlackDex-RE" />
+    </PreferenceCategory>
 
 </PreferenceScreen>

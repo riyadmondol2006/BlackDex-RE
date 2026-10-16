@@ -17,6 +17,7 @@ import top.niunaijun.blackdex.app.App
 import top.niunaijun.blackdex.app.AppManager
 import top.niunaijun.blackdex.data.entity.AppInfo
 import top.niunaijun.blackdex.data.entity.DumpInfo
+import top.niunaijun.blackdex.util.PackerDetector
 import java.io.File
 
 /**
@@ -35,22 +36,27 @@ class DexDumpRepository {
                 getPackageManager().getInstalledApplications(0)
         val installedList = mutableListOf<AppInfo>()
 
+        val showSystem = AppManager.mBlackBoxLoader.isShowSystemApps()
         for (installedApplication in installedApplications) {
             val file = File(installedApplication.sourceDir)
 
-            if ((installedApplication.flags and ApplicationInfo.FLAG_SYSTEM) != 0) continue
+            val isSystem = (installedApplication.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            if (isSystem && !showSystem) continue
+            if (installedApplication.packageName == App.getContext().packageName) continue
 
             if (!AbiUtils.isSupport(file)) continue
-
 
             val info = AppInfo(
                     installedApplication.loadLabel(getPackageManager()).toString(),
                     installedApplication.packageName,
-                    installedApplication.loadIcon(getPackageManager())
+                    installedApplication.loadIcon(getPackageManager()),
+                    PackerDetector.detect(file),
+                    isSystem
             )
             installedList.add(info)
         }
 
+        installedList.sortBy { it.name.lowercase() }
         mAppListLiveData.postValue(installedList)
     }
 
@@ -90,9 +96,11 @@ class DexDumpRepository {
             }
             if (tempId == dumpTaskId) {
                 if (BlackDexCore.get().isExistDexFile(installResult.packageName)) {
+                    val dir = File(BlackBoxCore.get().dexDumpDir, installResult.packageName).absolutePath
                     dexDumpLiveData.postValue( DumpInfo(
                             DumpInfo.SUCCESS,
-                            App.getContext().getString(R.string.dex_save, File(BlackBoxCore.get().dexDumpDir, installResult.packageName).absolutePath)
+                            App.getContext().getString(R.string.dex_save, dir),
+                            dir
                     ))
                 } else {
                     dexDumpLiveData.postValue(DumpInfo(DumpInfo.TIMEOUT))

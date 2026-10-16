@@ -118,6 +118,9 @@ public class BActivityThread extends IBActivityThread.Stub {
             throw new RuntimeException("reject init process: " + appConfig.processName + ", this process is : " + this.mAppConfig.processName);
         }
         this.mAppConfig = appConfig;
+        // The keep-alive foreground service that holds this :pN process open during the dump is
+        // started from the SERVER process (see BProcessManager), because inside a guest process
+        // startService() is intentionally no-op'd by the sandbox hooks.
     }
 
     public boolean isInit() {
@@ -189,14 +192,39 @@ public class BActivityThread extends IBActivityThread.Stub {
             BlackBoxCore.get().getAppLifecycleCallback().beforeCreateApplication(packageName, processName, packageContext);
             try {
                 ClassLoader call = LoadedApk.getClassloader.call(loadedApk);
-                application = LoadedApk.makeApplication.call(loadedApk, false, null);
+                // API <=33: makeApplication(boolean, Instrumentation).
+                // API >=34: makeApplicationInner(boolean, Instrumentation).
+                if (LoadedApk.makeApplication.unwrap() != null) {
+                    application = LoadedApk.makeApplication.callWithException(loadedApk, false, null);
+                }
+                if (application == null && LoadedApk.makeApplicationInner.unwrap() != null) {
+                    application = LoadedApk.makeApplicationInner.callWithException(loadedApk, false, null);
+                }
+                Slog.d(TAG, "makeApplication -> " + (application == null ? "null" : application.getClass().getName()));
             } catch (Throwable e) {
                 Slog.e(TAG, "Unable to makeApplication");
                 e.printStackTrace();
             }
             mInitialApplication = application;
             ActivityThread.mInitialApplication.set(BlackBoxCore.mainThread(), mInitialApplication);
-            if (Objects.equals(packageName, processName)) {
+
+            // Drive the target Application's onCreate(). makeApplication only runs
+            // attachBaseContext; many packers (e.g. 360 Jiagu) decrypt and install their real dex
+            // in Application.onCreate, so without this call their code never materialises. We run
+            // it directly since there is no stub Activity to trigger the normal lifecycle.
+            if (application != null) {
+                try {
+                    application.onCreate();
+                } catch (Throwable e) {
+                    Slog.e(TAG, "application.onCreate() threw (continuing)", e);
+                }
+            }
+
+            Slog.d(TAG, "dump-check packageName=" + packageName + " processName=" + processName
+                    + " app=" + (application == null ? "null" : "ok"));
+            // Dump in the app's MAIN process only. The main process is the one whose
+            // process name equals the package name (or is unset).
+            if (processName == null || Objects.equals(packageName, processName)) {
                 ClassLoader loader;
                 if (application == null) {
                     loader = LoadedApk.getClassloader.call(loadedApk);
@@ -214,22 +242,48 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
 
     private void handleDumpDex(String packageName, DumpResult result, ClassLoader classLoader) {
+        // Run the dump SYNCHRONOUSLY on this (guest main) thread. handleBindApplication was
+        // invoked via a binder call from the server (which was in turn called by the TOP host
+        // process), so while it is in flight the guest process keeps an elevated, non-freezable
+        // procstate through binder priority inheritance. That is what keeps the process alive
+        // during the dump now that there is no stub Activity and no keep-alive service.
+        // Dump in two passes: packers often decrypt/load the real dex a moment after onCreate
+        // (sometimes on a background thread), so a single early snapshot can miss it. The native
+        // dumper de-duplicates by dex size, so a second pass only adds newly-materialised dexes.
+        try {
+            Thread.sleep(900);
+        } catch (InterruptedException ignored) {
+        }
+        try {
+            VMCore.cookieDumpDex(classLoader, packageName);
+        } catch (Throwable e) {
+            Slog.e(TAG, "cookieDumpDex error (pass 1)", e);
+        }
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException ignored) {
+        }
+        try {
+            VMCore.cookieDumpDex(classLoader, packageName);
+        } catch (Throwable e) {
+            Slog.e(TAG, "cookieDumpDex error (pass 2)", e);
+        }
+        mAppConfig = null;
+        final File dir = new File(result.dir);
+        File[] files = dir.listFiles();
+        Slog.d(TAG, "dump done, files=" + (files == null ? 0 : files.length) + " dir=" + result.dir);
+        // Notify + uninstall off the critical path so bindApplication() can return promptly;
+        // the dex is already on disk and the host also polls for it.
         new Thread(() -> {
             try {
-                Thread.sleep(500);
-            } catch (InterruptedException ignored) {
-            }
-            try {
-                VMCore.cookieDumpDex(classLoader, packageName);
-            } finally {
-                mAppConfig = null;
-                File dir = new File(result.dir);
-                if (!dir.exists() || dir.listFiles().length == 0) {
+                File[] f = dir.listFiles();
+                if (!dir.exists() || f == null || f.length == 0) {
                     BlackBoxCore.getBDumpManager().noticeMonitor(result.dumpError("not found dex file"));
                 } else {
                     BlackBoxCore.getBDumpManager().noticeMonitor(result.dumpSuccess());
                 }
                 BlackBoxCore.get().uninstallPackage(packageName);
+            } catch (Throwable ignored) {
             }
         }).start();
     }

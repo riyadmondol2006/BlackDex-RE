@@ -1,6 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="top.niunaijun.blackbox">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- unknown -->
     <uses-permission android:name="android.permission.WRITE_SOCIAL_STREAM" />
@@ -312,6 +311,7 @@
         tools:ignore="ProtectedPermissions" />
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature
@@ -333,12 +333,12 @@
         <service
             android:name="top.niunaijun.blackbox.core.system.DaemonService"
             android:exported="false"
-            android:process="@string/black_box_service_name" />
-
-        <service
-            android:name="top.niunaijun.blackbox.core.system.DaemonService$DaemonInnerService"
-            android:exported="false"
-            android:process="@string/black_box_service_name" />
+            android:foregroundServiceType="specialUse"
+            android:process="@string/black_box_service_name">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="dex_unpacking_sandbox" />
+        </service>
 
         <activity
             android:name=".proxy.ProxyActivity$P0"

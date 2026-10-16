@@ -1,19 +1,24 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion "28.0.2"
+    namespace 'top.niunaijun.blackbox'
+    compileSdk rootProject.ext.compileSdk
+    ndkVersion rootProject.ext.ndkVersion
 
     defaultConfig {
-        minSdkVersion 21
-        targetSdkVersion 28
-        versionCode 1
-        versionName "1.0"
+        minSdkVersion rootProject.ext.minSdk
+        targetSdkVersion rootProject.ext.targetSdk
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // 设置支持的SO库架构
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86'
+            // Universal: both 32-bit and 64-bit ARM in a single artifact.
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -frtti -fexceptions"
+                arguments "-DANDROID_STL=c++_static"
+            }
         }
     }
 
@@ -26,37 +31,28 @@ android {
     externalNativeBuild {
         cmake {
             path file('./src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
         }
     }
-    dexOptions {
-        preDexLibraries false
-        maxProcessCount 8
-        javaMaxHeapSize "4g"
-    }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-    aaptOptions {
-        cruncherEnabled = false
-        useNewCruncher = false
+    buildFeatures {
+        aidl true
+        buildConfig true
+    }
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        disable 'UnusedResources', 'RestrictedApi', 'NewApi', 'InlinedApi'
     }
     testOptions {
         unitTests.returnDefaultValues = true
     }
-    lintOptions {
-        checkReleaseBuilds false
-        abortOnError false
-        warningsAsErrors false
-        disable "UnusedResources", 'RestrictedApi'
-        textOutput "stdout"
-        textReport false
-        check 'NewApi', 'InlinedApi'
-    }
 }
 
-
-tasks.withType(Javadoc) {
+tasks.withType(Javadoc).configureEach {
     options.addStringOption('Xdoclint:none', '-quiet')
     options.addStringOption('encoding', 'UTF-8')
     options.addStringOption('charSet', 'UTF-8')
@@ -64,9 +60,12 @@ tasks.withType(Javadoc) {
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
-    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
 
-    implementation 'me.weishu:free_reflection:3.0.1'
+    // Hidden-API unsealing. FreeReflection keeps the me.weishu.reflection package.
+    implementation 'com.github.tiann:FreeReflection:3.1.0'
+    // Robust hidden-API bypass for Android 9-15+ (API 28-35+).
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:4.3'
     implementation project(':Bcore:black-hook')
     implementation project(':Bcore:black-fake')
 }

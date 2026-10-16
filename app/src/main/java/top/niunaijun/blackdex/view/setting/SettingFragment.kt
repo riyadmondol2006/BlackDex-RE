@@ -1,125 +1,142 @@
 package top.niunaijun.blackdex.view.setting
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreferenceCompat
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.files.folderChooser
-import top.niunaijun.blackdex.app.App
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import top.niunaijun.blackdex.BuildConfig
 import top.niunaijun.blackdex.R
+import top.niunaijun.blackdex.app.App
 import top.niunaijun.blackdex.app.AppManager
 import top.niunaijun.blackdex.app.BlackDexLoader
-import java.io.File
 
-
-/**
- *
- * @Description:
- * @Author: wukaicheng
- * @CreateDate: 2021/5/28 19:55
- */
 class SettingFragment : PreferenceFragmentCompat() {
 
     private lateinit var savePathPreference: Preference
-
     private lateinit var saveEnablePreference: SwitchPreferenceCompat
-
     private lateinit var fixCodeItemPreference: SwitchPreferenceCompat
-
     private lateinit var hookDumpPreference: SwitchPreferenceCompat
 
-    private val initialDirectory = AppManager.mBlackBoxLoader.getSavePath()
+    private val loader get() = AppManager.mBlackBoxLoader
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.setting)
+
         savePathPreference = findPreference("save_path")!!
-        savePathPreference.onPreferenceClickListener = mSavedPathClick
-        savePathPreference.summary = initialDirectory
-
         saveEnablePreference = findPreference("save_enable")!!
-        saveEnablePreference.onPreferenceChangeListener = mSaveEnableChange
-        saveEnablePreference.isChecked = AppManager.mBlackBoxLoader.saveEnable()
-
         fixCodeItemPreference = findPreference("fix_code_item")!!
-        fixCodeItemPreference.onPreferenceChangeListener = mFixCodeItemChange
-        fixCodeItemPreference.isChecked = AppManager.mBlackBoxLoader.isFixCodeItem()
-
         hookDumpPreference = findPreference("hook_dump")!!
-        hookDumpPreference.onPreferenceChangeListener = mHookDumpChange
-        hookDumpPreference.isChecked = AppManager.mBlackBoxLoader.isHookDump()
 
+        saveEnablePreference.isChecked = loader.saveEnable()
+        saveEnablePreference.onPreferenceChangeListener = mSaveEnableChange
+
+        savePathPreference.summary = effectivePathSummary()
+
+        fixCodeItemPreference.isChecked = loader.isFixCodeItem()
+        fixCodeItemPreference.onPreferenceChangeListener = mFixCodeItemChange
+
+        hookDumpPreference.isChecked = loader.isHookDump()
+        hookDumpPreference.onPreferenceChangeListener = mHookDumpChange
+
+        // Appearance
+        (findPreference<androidx.preference.ListPreference>("theme_mode"))?.apply {
+            value = loader.getThemeMode().toString()
+            summary = entry
+            setOnPreferenceChangeListener { pref, newValue ->
+                val mode = (newValue as String).toIntOrNull() ?: -1
+                loader.setThemeMode(mode)
+                (pref as androidx.preference.ListPreference).value = newValue
+                pref.summary = pref.entry
+                (requireActivity().application as App).applyTheme()
+                androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                    when (mode) {
+                        1 -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+                        2 -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                        else -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                    }
+                )
+                false
+            }
+        }
+        findPreference<SwitchPreferenceCompat>("dynamic_color")?.apply {
+            isChecked = loader.isDynamicColor()
+            setOnPreferenceChangeListener { _, newValue ->
+                loader.setDynamicColor(newValue as Boolean)
+                requireActivity().recreate()
+                true
+            }
+        }
+        findPreference<SwitchPreferenceCompat>("show_system_apps")?.apply {
+            isChecked = loader.isShowSystemApps()
+            setOnPreferenceChangeListener { _, newValue ->
+                loader.setShowSystemApps(newValue as Boolean)
+                true
+            }
+        }
+
+        findPreference<Preference>("about_version")?.summary = BuildConfig.VERSION_NAME
+        findPreference<Preference>("about_source")?.setOnPreferenceClickListener {
+            runCatching {
+                startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/riyadmondol2006/BlackDex-RE"))
+                )
+            }
+            true
+        }
     }
 
-    private val mSavedPathClick = Preference.OnPreferenceClickListener {
-        val initialFile = with(initialDirectory) {
-            if (initialDirectory.isEmpty()) {
-                Environment.getExternalStorageDirectory()
-            } else {
-                File(this)
-            }
+    private fun effectivePathSummary(): String {
+        return if (loader.saveEnable() || loader.getSavePath().isEmpty()) {
+            BlackDexLoader.getDexDumpDir(App.getContext())
+        } else {
+            loader.getSavePath()
         }
-
-        MaterialDialog(requireContext()).show {
-            folderChooser(
-                requireContext(),
-                initialDirectory = initialFile,
-                allowFolderCreation = true
-            ) { _, file ->
-                AppManager.mBlackBoxLoader.setSavePath(file.absolutePath)
-                savePathPreference.summary = file.absolutePath
-            }
-            negativeButton(res = R.string.cancel)
-        }
-        return@OnPreferenceClickListener true
     }
 
     private val mSaveEnableChange = Preference.OnPreferenceChangeListener { _, newValue ->
         if (newValue == false) {
+            // User wants a custom (public) path → needs all-files access.
             (requireActivity() as SettingActivity).setRequestCallback(requestResult)
+            false // don't flip until permission result arrives
         } else {
-            AppManager.mBlackBoxLoader.saveEnable(true)
-            saveEnablePreference.isChecked = true
+            loader.saveEnable(true)
+            savePathPreference.summary = effectivePathSummary()
+            true
         }
-        return@OnPreferenceChangeListener true
     }
 
     private val mHookDumpChange = Preference.OnPreferenceChangeListener { _, newValue ->
-        AppManager.mBlackBoxLoader.setHookDump(newValue as Boolean)
-        return@OnPreferenceChangeListener true
+        loader.setHookDump(newValue as Boolean)
+        true
     }
 
     private val mFixCodeItemChange = Preference.OnPreferenceChangeListener { _, newValue ->
         if (newValue as Boolean) {
-
-            MaterialDialog(requireContext()).show {
-                title(R.string.warn)
-                message(R.string.fix_code_item_message)
-                positiveButton(R.string.confirm) {
-                    AppManager.mBlackBoxLoader.setFixCodeItem(true)
-                }
-                negativeButton(R.string.cancel) {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.warn)
+                .setMessage(R.string.fix_code_item_message)
+                .setPositiveButton(R.string.confirm) { _, _ -> loader.setFixCodeItem(true) }
+                .setNegativeButton(R.string.cancel) { _, _ ->
                     fixCodeItemPreference.isChecked = false
-                    AppManager.mBlackBoxLoader.setFixCodeItem(false)
+                    loader.setFixCodeItem(false)
                 }
-            }
-
+                .show()
         } else {
-            AppManager.mBlackBoxLoader.setFixCodeItem(newValue)
+            loader.setFixCodeItem(false)
         }
-        return@OnPreferenceChangeListener true
+        true
     }
 
-
     private val requestResult = { hasPermission: Boolean ->
-        AppManager.mBlackBoxLoader.saveEnable(!hasPermission)
+        loader.saveEnable(!hasPermission)
         saveEnablePreference.isChecked = !hasPermission
-
-        if (AppManager.mBlackBoxLoader.getSavePath().isEmpty()) {
-            val path = BlackDexLoader.getDexDumpDir(App.getContext())
-            AppManager.mBlackBoxLoader.setSavePath(path)
-            savePathPreference.summary = path
+        if (hasPermission) {
+            val path = BlackDexLoader.getPublicDumpDir()
+            loader.setSavePath(path)
         }
+        savePathPreference.summary = effectivePathSummary()
     }
 }

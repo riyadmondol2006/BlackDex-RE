@@ -1,15 +1,12 @@
 package top.niunaijun.blackdex.data.entity
 
 import android.graphics.drawable.Drawable
+import top.niunaijun.blackdex.util.PackerInfo
 
-/**
- *
- * @Description:
- * @Author: wukaicheng
- * @CreateDate: 2021/5/23 14:36
- */
 data class AppInfo(
-        val name:String,
-        val packageName:String,
-        val icon:Drawable
+    val name: String,
+    val packageName: String,
+    val icon: Drawable,
+    val packer: PackerInfo = PackerInfo.NONE,
+    val system: Boolean = false,
 )

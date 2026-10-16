@@ -71,12 +71,16 @@ public class BlackBoxSystem {
         try {
             InputStream junit = BlackBoxCore.getContext().getAssets().open("junit.jar");
             FileUtils.copyFile(junit, JUNIT_JAR);
+            FileUtils.makeReadOnly(JUNIT_JAR);
 
             InputStream empty = BlackBoxCore.getContext().getAssets().open("empty.jar");
             FileUtils.copyFile(empty, EMPTY_JAR);
+            FileUtils.makeReadOnly(EMPTY_JAR);
 
             InputStream vm = BlackBoxCore.getContext().getAssets().open("vm.jar");
             FileUtils.copyFile(vm, VM_JAR);
+            // API 34+: a dex/apk loaded by the app must not be writable.
+            FileUtils.makeReadOnly(VM_JAR);
         } catch (IOException e) {
             e.printStackTrace();
         }

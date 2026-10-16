@@ -180,6 +180,9 @@ void addIORule(JNIEnv *env, jclass clazz, jstring target_path,
 void enableIO(JNIEnv *env, jclass clazz) {
     IO::init(env);
     nativeHook(env);
+    // Install anti-self-kill hooks now, before the target app (and any packer it ships) runs
+    // during makeApplication, so a packer cannot terminate the process before we dump.
+    DexDump::installAntiKill(env);
 }
 
 void hookDumpDex(JNIEnv *env, jobject clazz, jstring dir) {

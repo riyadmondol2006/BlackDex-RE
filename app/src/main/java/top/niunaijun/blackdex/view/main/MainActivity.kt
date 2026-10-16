@@ -3,17 +3,22 @@ package top.niunaijun.blackdex.view.main
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.files.fileChooser
-import com.ferfalk.simplesearchview.SimpleSearchView
-import com.umeng.analytics.MobclickAgent
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
 import top.niunaijun.blackbox.BlackDexCore
 import top.niunaijun.blackbox.core.system.dump.IBDumpMonitor
 import top.niunaijun.blackbox.entity.dump.DumpResult
@@ -21,14 +26,14 @@ import top.niunaijun.blackdex.R
 import top.niunaijun.blackdex.data.entity.AppInfo
 import top.niunaijun.blackdex.data.entity.DumpInfo
 import top.niunaijun.blackdex.databinding.ActivityMainBinding
-import top.niunaijun.blackdex.util.FileUtil
+import top.niunaijun.blackdex.util.ExportUtil
 import top.niunaijun.blackdex.util.InjectionUtil
 import top.niunaijun.blackdex.util.inflate
+import top.niunaijun.blackdex.util.toast
 import top.niunaijun.blackdex.view.base.PermissionActivity
 import top.niunaijun.blackdex.view.setting.SettingActivity
 import top.niunaijun.blackdex.view.widget.ProgressDialog
 import java.io.File
-
 
 class MainActivity : PermissionActivity() {
 
@@ -40,21 +45,33 @@ class MainActivity : PermissionActivity() {
 
     private var loadingView: ProgressDialog? = null
 
-    private var initialDir: File? = null
-
     private var appList: List<AppInfo> = ArrayList()
+
+    private val openApkLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let { importAndDump(it) }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(viewBinding.root)
-
-        initToolbar(viewBinding.toolbarLayout.toolbar, R.string.app_name)
+        setSupportActionBar(viewBinding.toolbar)
+        viewBinding.toolbar.subtitle = "non-root · " + top.niunaijun.blackbox.BlackDexCore.get().hostAbi
+        applyEdgeToEdgeInsets()
         initView()
         initViewModel()
-        initSearchView()
+        initSearch()
 
         BlackDexCore.get().registerDumpMonitor(mMonitor)
+    }
 
+    private fun applyEdgeToEdgeInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(viewBinding.root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            viewBinding.appBar.updatePadding(top = bars.top)
+            viewBinding.recyclerView.updatePadding(bottom = bars.bottom + 96)
+            insets
+        }
     }
 
     private fun initView() {
@@ -63,96 +80,120 @@ class MainActivity : PermissionActivity() {
         viewBinding.recyclerView.layoutManager = LinearLayoutManager(this)
 
         mAdapter.setOnItemClick { _, _, data ->
-            if (viewBinding.searchView.isSearchOpen) {
-                viewBinding.searchView.closeSearch()
-                filterApp("")
-            }
             hideKeyboard()
-            viewModel.startDexDump(data.packageName)
+            confirmDump(data)
+        }
+
+        viewBinding.swipeRefresh.setOnRefreshListener {
+            viewModel.getAppList()
         }
 
         viewBinding.fab.setOnClickListener {
-            this.requestPermissionCallback = {
-                if (it) {
-                    this.requestPermissionCallback = null
-                    if (initialDir == null) {
-                        initialDir = Environment.getExternalStorageDirectory()
-                    }
-                    MaterialDialog(this).show {
-                        fileChooser(
-                            this@MainActivity,
-                            initialDirectory = initialDir,
-                            filter = FileUtil::filterApk,
-                        ) { _, file ->
-                            viewModel.startDexDump(file.absolutePath)
-                            this@MainActivity.initialDir = file.parentFile
-                        }
+            openApkLauncher.launch(
+                arrayOf(
+                    "application/vnd.android.package-archive",
+                    "application/octet-stream",
+                    "application/zip",
+                    "*/*"
+                )
+            )
+        }
+    }
 
-                        negativeButton(R.string.cancel)
-                    }
-
-                }
+    private fun confirmDump(data: AppInfo) {
+        val sb = StringBuilder(data.packageName)
+        if (data.packer.isProtected) {
+            sb.append("\n\n").append(getString(R.string.protection_label, data.packer.name))
+            if (data.packer.vmpLikely) {
+                sb.append("\n").append(getString(R.string.vmp_warning))
             }
-            requestStoragePermission()
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(data.name)
+            .setMessage(sb.toString())
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.dumping) { _, _ ->
+                viewModel.startDexDump(data.packageName)
+            }
+            .show()
+    }
+
+    private fun importAndDump(uri: Uri) {
+        showLoading()
+        lifecycleScope.launch {
+            val path = withContext(Dispatchers.IO) {
+                runCatching {
+                    val dst = File(cacheDir, "import_${System.currentTimeMillis()}.apk")
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        dst.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    dst.absolutePath
+                }.getOrNull()
+            }
+            if (path == null) {
+                hideLoading()
+                toast(getString(R.string.unpack_fail))
+            } else if (!BlackDexCore.get().isAbiSupported(File(path))) {
+                hideLoading()
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(R.string.abi_mismatch_title)
+                    .setMessage(getString(R.string.abi_mismatch_msg, BlackDexCore.get().hostAbi))
+                    .setPositiveButton(R.string.confirm, null)
+                    .show()
+            } else {
+                viewModel.startDexDump(path)
+            }
         }
     }
 
     private fun initViewModel() {
         viewModel =
-            ViewModelProvider(this, InjectionUtil.getMainFactory()).get(MainViewModel::class.java)
-        viewBinding.stateView.showLoading()
+            ViewModelProvider(this, InjectionUtil.getMainFactory())[MainViewModel::class.java]
+        showListLoading(true)
         viewModel.getAppList()
 
         viewModel.mAppListLiveData.observe(this) {
             it?.let {
                 this.appList = it
-                viewBinding.searchView.setQuery("", false)
-                filterApp("")
-                if (it.isNotEmpty()) {
-                    viewBinding.stateView.showContent()
-                } else {
-                    viewBinding.stateView.showEmpty()
-                }
+                viewBinding.swipeRefresh.isRefreshing = false
+                showListLoading(false)
+                filterApp(viewBinding.searchEdit.text?.toString() ?: "")
             }
         }
 
         viewModel.mDexDumpLiveData.observe(this) {
             it?.let {
                 when (it.state) {
-                    DumpInfo.LOADING -> {
-                        showLoading()
-                    }
+                    DumpInfo.LOADING -> showLoading()
                     DumpInfo.TIMEOUT -> {
                         hideLoading()
-                        MaterialDialog(this).show {
-                            title(R.string.unpack_fail)
-                            message(R.string.jump_issue)
-                            negativeButton(R.string.github) {
-                                val intent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/CodingGay/BlackDex/issues")
-                                )
-                                startActivity(intent)
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.unpack_fail)
+                            .setMessage(R.string.jump_issue)
+                            .setNegativeButton(R.string.github) { _, _ ->
+                                openUrl("https://github.com/riyadmondol2006/BlackDex-RE/issues")
                             }
-                            positiveButton(res = R.string.confirm)
-                        }
+                            .setPositiveButton(R.string.confirm, null)
+                            .show()
                     }
                     else -> {
                         viewModel.dexDumpSuccess()
                         hideLoading()
-                        val title = if (it.state == DumpInfo.SUCCESS) {
-                            R.string.unpack_success
-                        } else {
-                            R.string.unpack_fail
+                        val success = it.state == DumpInfo.SUCCESS
+                        val builder = MaterialAlertDialogBuilder(this)
+                            .setTitle(if (success) R.string.unpack_success else R.string.unpack_fail)
+                            .setMessage(it.msg)
+                            .setPositiveButton(R.string.confirm, null)
+                        if (success && it.dir.isNotEmpty()) {
+                            val dir = File(it.dir)
+                            builder.setNeutralButton(R.string.share) { _, _ -> shareDump(dir) }
+                            builder.setNegativeButton(R.string.open_folder) { _, _ ->
+                                ExportUtil.openFolder(this, dir)
+                            }
                         }
-                        MaterialDialog(this).show {
-                            title(title)
-                            message(text = it.msg)
-                            positiveButton(R.string.confirm)
-                        }
+                        builder.show()
                     }
                 }
-
             }
         }
     }
@@ -160,50 +201,27 @@ class MainActivity : PermissionActivity() {
     private val mMonitor = object : IBDumpMonitor.Stub() {
         override fun onDump(result: DumpResult?) {
             result?.let {
-                // 此处做进度条
                 if (result.isRunning) {
                     loadingView?.setProgress(result.currProcess, result.totalProcess)
                     return
                 }
-
                 if (result.isSuccess) {
                     viewModel.mDexDumpLiveData.postValue(
-                        DumpInfo(
-                            DumpInfo.SUCCESS,
-                            getString(R.string.dex_save, result.dir)
-                        )
+                        DumpInfo(DumpInfo.SUCCESS, getString(R.string.dex_save, result.dir))
                     )
                 } else {
                     viewModel.mDexDumpLiveData.postValue(
-                        DumpInfo(
-                            DumpInfo.FAIL,
-                            getString(R.string.error_msg, result.msg)
-                        )
+                        DumpInfo(DumpInfo.FAIL, getString(R.string.error_msg, result.msg))
                     )
                 }
             }
         }
-
     }
 
-
-    private fun initSearchView() {
-        viewBinding.searchView.setOnQueryTextListener(object :
-            SimpleSearchView.OnQueryTextListener {
-            override fun onQueryTextChange(newText: String): Boolean {
-                filterApp(newText)
-                return true
-            }
-
-            override fun onQueryTextCleared(): Boolean {
-                return true
-            }
-
-            override fun onQueryTextSubmit(query: String): Boolean {
-                return true
-            }
-
-        })
+    private fun initSearch() {
+        viewBinding.searchEdit.doAfterTextChanged { text ->
+            filterApp(text?.toString() ?: "")
+        }
     }
 
     private fun filterApp(newText: String) {
@@ -211,71 +229,65 @@ class MainActivity : PermissionActivity() {
             it.name.contains(newText, true) or it.packageName.contains(newText, true)
         }
         mAdapter.replaceData(newList)
+        viewBinding.emptyView.isVisible = newList.isEmpty() && !viewBinding.listLoading.isVisible
+    }
+
+    private fun showListLoading(loading: Boolean) {
+        viewBinding.listLoading.isVisible = loading
+        if (loading) viewBinding.emptyView.isVisible = false
     }
 
     private fun showLoading() {
         if (this.loadingView == null) {
             loadingView = ProgressDialog()
         }
-        loadingView?.show(supportFragmentManager, "")
+        if (loadingView?.isAdded != true) {
+            loadingView?.show(supportFragmentManager, "progress")
+        }
     }
 
     private fun hideLoading() {
-        loadingView?.dismiss()
+        loadingView?.dismissAllowingStateLoss()
         loadingView = null
     }
 
     private fun hideKeyboard() {
-        val imm: InputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        window.peekDecorView()?.run {
-            imm.hideSoftInputFromWindow(windowToken, 0)
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        window.peekDecorView()?.run { imm.hideSoftInputFromWindow(windowToken, 0) }
+    }
+
+    private fun shareDump(dir: File) {
+        lifecycleScope.launch {
+            val zip = withContext(Dispatchers.IO) {
+                ExportUtil.zipDump(this@MainActivity, dir, dir.name)
+            }
+            if (zip != null) {
+                ExportUtil.shareZip(this@MainActivity, zip)
+            } else {
+                toast(getString(R.string.unpack_fail))
+            }
         }
     }
 
-    override fun onBackPressed() {
-        if (viewBinding.searchView.isSearchOpen) {
-            viewBinding.searchView.closeSearch()
-            filterApp("")
-        } else {
-            super.onBackPressed()
-        }
+    private fun openUrl(url: String) {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     }
-
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
-        val item = menu!!.findItem(R.id.main_search)
-        viewBinding.searchView.setMenuItem(item)
-
         return true
     }
 
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.main_git -> {
-                val intent =
-                    Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/CodingGay/BlackDex"))
-                startActivity(intent)
-            }
-
-            R.id.main_setting -> {
-                val intent =
-                    Intent(this, SettingActivity::class.java)
-                startActivity(intent)
-            }
+            R.id.main_git -> openUrl("https://github.com/riyadmondol2006/BlackDex-RE")
+            R.id.main_setting -> startActivity(Intent(this, SettingActivity::class.java))
         }
-
         return super.onOptionsItemSelected(item)
     }
 
-    override fun onResume() {
-        super.onResume()
-        MobclickAgent.onResume(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        MobclickAgent.onPause(this)
+    override fun onDestroy() {
+        super.onDestroy()
+        runCatching { BlackDexCore.get().unregisterDumpMonitor(mMonitor) }
     }
 }

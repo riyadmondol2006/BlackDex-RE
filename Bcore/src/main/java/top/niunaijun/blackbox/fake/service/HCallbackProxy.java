@@ -87,9 +87,16 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
     }
 
     private Object getLaunchActivityItem(Object clientTransaction) {
-        List<Object> mActivityCallbacks = ClientTransaction.mActivityCallbacks.get(clientTransaction);
-
-        for (Object obj : mActivityCallbacks) {
+        // API <= 33 used mActivityCallbacks; API 34+ (Android 14) merged everything into
+        // a single mTransactionItems list. Try whichever is present.
+        List<Object> items = ClientTransaction.mActivityCallbacks.get(clientTransaction);
+        if (items == null) {
+            items = ClientTransaction.mTransactionItems.get(clientTransaction);
+        }
+        if (items == null) {
+            return null;
+        }
+        for (Object obj : items) {
             if (LaunchActivityItem.REF.getClazz().getName().equals(obj.getClass().getCanonicalName())) {
                 return obj;
             }

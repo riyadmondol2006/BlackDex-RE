@@ -53,7 +53,28 @@ public class VMCore {
     private static native void hookDumpDex(String dir);
 
     public static void cookieDumpDex(ClassLoader classLoader, String packageName) {
-        List<Long> cookies = DexFileCompat.getCookies(classLoader);
+        // 1) Seed with the manifest's declared component classes (Activities/Services/Receivers/
+        //    Providers). Loading e.g. the launcher Activity forces the packer to decrypt and load
+        //    the REAL app dex that otherwise only materialises when the UI starts — we never
+        //    launch an Activity in the dump flow, so this is how that code gets into memory.
+        forceLoadComponents(classLoader, packageName);
+        // 2) Now load every class name known across the (now-expanded) classloader chain, so
+        //    extraction-style packers materialise each method body.
+        forceLoadAllClasses(classLoader);
+
+        // Collect DexFile cookies from EVERY classloader we can reach: the one captured at bind
+        // time, the current thread's context classloader, and the live application's classloader.
+        // Packers frequently install their decrypted dex into a brand-new DexClassLoader and set
+        // it as the context/application classloader, so a single root misses it.
+        final List<Long> cookies = new java.util.ArrayList<>();
+        for (ClassLoader root : collectRootClassLoaders(classLoader)) {
+            for (long c : DexFileCompat.getAllCookies(root)) {
+                if (c != 0 && !cookies.contains(c)) cookies.add(c);
+            }
+        }
+        if (cookies.isEmpty()) {
+            cookies.addAll(DexFileCompat.getCookies(classLoader));
+        }
         File file = new File(BlackBoxCore.get().getDexDumpDir(), packageName);
 
         DumpResult result = new DumpResult();
@@ -96,6 +117,85 @@ public class VMCore {
                     DexUtils.fixDex(dex);
                 }
             }
+        }
+    }
+
+    /**
+     * Best-effort "active loading": ask the classloader to load every class name it exposes.
+     * For extraction/on-demand packers this triggers per-class decryption so the real code is
+     * present in memory when we snapshot the dex. Runs quietly — missing/abstract classes and
+     * initializer side effects are ignored.
+     */
+    /** The distinct classloaders worth scanning for the target's (possibly packer-loaded) dex. */
+    private static java.util.List<ClassLoader> collectRootClassLoaders(ClassLoader passed) {
+        java.util.List<ClassLoader> roots = new java.util.ArrayList<>();
+        addRoot(roots, passed);
+        try {
+            addRoot(roots, Thread.currentThread().getContextClassLoader());
+        } catch (Throwable ignored) {
+        }
+        try {
+            android.app.Application app = top.niunaijun.blackbox.app.BActivityThread.getApplication();
+            if (app != null) {
+                addRoot(roots, app.getClassLoader());
+                addRoot(roots, app.getBaseContext() == null ? null : app.getBaseContext().getClassLoader());
+            }
+        } catch (Throwable ignored) {
+        }
+        return roots;
+    }
+
+    private static void addRoot(java.util.List<ClassLoader> roots, ClassLoader cl) {
+        if (cl != null && !roots.contains(cl)) roots.add(cl);
+    }
+
+    /**
+     * Load the app's declared component classes (from the manifest) to trigger the packer's
+     * on-demand dex decryption. These are the entry points real app code hangs off of.
+     */
+    private static void forceLoadComponents(ClassLoader classLoader, String packageName) {
+        try {
+            int flags = android.content.pm.PackageManager.GET_ACTIVITIES
+                    | android.content.pm.PackageManager.GET_SERVICES
+                    | android.content.pm.PackageManager.GET_RECEIVERS
+                    | android.content.pm.PackageManager.GET_PROVIDERS;
+            android.content.pm.PackageInfo pi = BlackBoxCore.getBPackageManager()
+                    .getPackageInfo(packageName, flags,
+                            top.niunaijun.blackbox.app.BActivityThread.getUserId());
+            if (pi == null) return;
+            java.util.List<String> names = new java.util.ArrayList<>();
+            if (pi.activities != null)
+                for (android.content.pm.ActivityInfo c : pi.activities) names.add(c.name);
+            if (pi.services != null)
+                for (android.content.pm.ServiceInfo c : pi.services) names.add(c.name);
+            if (pi.receivers != null)
+                for (android.content.pm.ActivityInfo c : pi.receivers) names.add(c.name);
+            if (pi.providers != null)
+                for (android.content.pm.ProviderInfo c : pi.providers) names.add(c.name);
+            if (pi.applicationInfo != null) names.add(pi.applicationInfo.className);
+            for (String name : names) {
+                if (name == null) continue;
+                try {
+                    classLoader.loadClass(name);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void forceLoadAllClasses(ClassLoader classLoader) {
+        try {
+            List<String> names = DexFileCompat.getAllClassNames(classLoader);
+            for (String name : names) {
+                if (name == null) continue;
+                try {
+                    // loadClass (not Class.forName) — resolve without running static initializers.
+                    classLoader.loadClass(name);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
         }
     }
 

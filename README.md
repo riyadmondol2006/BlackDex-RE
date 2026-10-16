@@ -1,85 +1,154 @@
-# BlackDex
+<div align="center">
 
-**[English Version](README_EN.md)**
+# BlackDex RE
 
-![](https://img.shields.io/badge/language-java-brightgreen.svg)
+**Non-root DEX unpacker / dumper for modern Android — rebuilt for Android 13–17.**
 
-BlackDex是一个运行在Android手机上的脱壳工具，支持5.0～12，无需依赖任何环境任何手机都可以使用，包括模拟器。只需几秒，即可对已安装包括未安装的APK进行脱壳。
+Extract the real `.dex` files from installed apps or APK files, directly from ART memory,
+with **no root, no Xposed, no PC, no adb**. Just install and tap.
 
-## 运行原理
-[博客地址](https://blog.niunaijun.top/index.php/tag/BlackDex/)
+<img src="screenshots/icon.png" width="120" />
 
-## 项目声明
-### 本项目并不针对任何加固，在遇到检测环境等均不处理，仅供安全领域分析用途。项目免费开源仅供学习用途、请勿用于非法用途。否则后果自负！
-### Black系列交流群：390562046（QQ）
+[![Android](https://img.shields.io/badge/Android-13--17%20(API%2033--37)-3DDC84?logo=android&logoColor=white)](#)
+[![Arch](https://img.shields.io/badge/arch-arm64%20%2B%20arm32%20(universal)-blue)](#)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](#license)
 
-## 编译说明
-运行前请请Make Project一次
+</div>
 
-运行前请请Make Project一次
+---
 
-运行前请请Make Project一次
+## This is a fork
 
-## 脱壳说明
-本项目针对一（落地加载）、二（内存加载）、三（指令抽取）代壳，摆脱对以往脱壳环境的困扰，几乎支持5.0以上的任何系统。并且拥有 **快速**、**方便**、**成功率高** 的优点。一般只需要几秒钟即可完成对已安装包括未安装应用脱壳。**未安装应用**脱壳时间主要花费在复制文件IO消耗上，由应用大小决定速度。已安装应用一般在数秒内即可完成脱壳。
+**BlackDex RE** is **[riyadm](https://github.com/riyadmondol2006)'s fork** of the original
+[CodingGay/BlackDex](https://github.com/CodingGay/BlackDex) (Apache-2.0). The upstream project
+officially supported only Android 5.0–12 and shipped as two separate apps (32-bit and 64-bit).
 
-### 脱壳文件说明
-- hook_xxxx.dex **hook系统api脱壳的dex，深度脱壳不修复**
-- cookie_xxxx.dex **利用dexFile cookie脱壳的dex，深度脱壳时会修复此dex**
+This fork brings it to **modern Android (tested end-to-end on Android 17 / API 37, Pixel 6)**,
+merges both architectures into one universal APK, rebuilds the UI in Material 3, and adds a set of
+reverse-engineering quality-of-life features.
 
+> ⭐ Fork home: **https://github.com/riyadmondol2006/BlackDex-RE**
 
-## 脱壳原理
-通过DexFile cookie进行脱壳，理论兼容art开始的所有版本。可能少数因设备而异，绝大部分是支持的。资源有限无法大量测试，遇到问题请提issues.
+---
 
-## 深度脱壳
-深度脱壳模式下会自主修复被抽取的方法指令，将指向其他内存块的指令回填至DEX内，解决nop问题，但是不会确保一定会有用，例如：指令需要主动调用才解密等则无法回填或者说是无效回填。深度脱壳并不包含任何解密、主动调用等操作。本功能仍然在测试阶段，**可能会出现以下情况，请悉知，愿世上再无nop。**
-1. 脱壳时间会大幅度上升，预计几分钟都十几分钟不等
-2. 脱壳期间有可能会出现应用闪退（遇到反检测等）
-3. 会增加脱壳失败几率
-4. 不一定能够100%还原
+## Screenshots
 
-#### 部分抽取壳脱壳前后对比
-![xx](nop_diff.jpg)
+| App list + protection badges | Packer / VMP detection | Settings (Material You) |
+|---|---|---|
+| <img src="screenshots/main.png" width="240"/> | <img src="screenshots/packer_detection.png" width="240"/> | <img src="screenshots/settings.png" width="240"/> |
 
-## 环境要求
-- 一台普通手机
-- ~~Xposed~~
-- ~~Frida~~
-- ~~Magisk~~
-- ~~Root~~
-- ~~定制系统~~
+---
 
-## 架构特别说明
-本项目区分32位与64位，目前是2个不同的app，如在Demo已安装列表内无法找到需要开启的app说明不支持，请使用另一个版本。
+## What was broken on new Android — and fixed in RE
 
-BlackDex下载：https://github.com/CodingGay/BlackDex/releases
+The upstream framework (a VirtualApp-style in-process sandbox) broke in many places after
+Android 12. Every one of these was diagnosed on-device and fixed:
 
-## 演示
-![xx](demonstration.gif)
+| Problem on Android 13–17 | Fix in RE |
+|---|---|
+| Hidden-API reflection blocked; FreeReflection's `setHiddenApiExemptions` is `blocked` on API 34+ | Switched to **LSPosed HiddenApiBypass** (+ FreeReflection fallback) |
+| `LoadedApk.makeApplication(boolean,Instrumentation)` removed on API 34+ | Fall back to **`makeApplicationInner`** |
+| PackageManager hooks cast flags to `int`, but flags became **`long`** on API 33+ | Safe `Number`→`int` coercion across all service hooks |
+| `ClientTransaction.mActivityCallbacks` replaced by **`mTransactionItems`** on API 34 | Read whichever field exists |
+| API 34+ refuses to load a **writable dex** (`SecurityException: Writable dex file … is not allowed`) | Mark injected apk/jar/dex **read-only** after copying |
+| The `:black` server process got **frozen/killed** by the Cached-Apps Freezer mid-dump | Proper persistent **foreground service** + a dump path that keeps the process boosted |
+| Activity-launch config-change **NPE** / proxy-process teardown race | Dump via a **direct bind** over the process binder — no stub Activity |
+| Native dumper read **ART `DexFile` C++ offsets** that change every release → crash / 0-byte dumps | Rewrote it to **locate the dex by magic scan** and read size from the **dex header**; **16 KB-page safe** |
+| `art::ClassLinker::LoadMethod` symbol gone / inlined on API 36+ | Cookie-based dump that doesn't depend on that symbol |
+| Old toolchain (AGP 4.2 / Gradle 6.7) wouldn't build on modern JDKs | **AGP 8.7, Gradle 8.12, Kotlin 1.9, JDK 17, NDK r27, compileSdk 36** |
 
+---
 
-## 感谢
-- [VirtualApp](https://github.com/asLody/VirtualApp)
-- [VirtualAPK](https://github.com/didi/VirtualAPK)
-- [FreeReflection](https://github.com/tiann/FreeReflection)
-- [Dreamland](https://github.com/canyie/Dreamland)
-- [lkchandexfile](https://github.com/lkchan724/lkchandexfile)
-- [xhook](https://github.com/iqiyi/xHook)
-- [Dobby](https://github.com/jmpews/Dobby)
-### License
+## New features
 
-> ```
-> Copyright 2021 Milk
->
-> Licensed under the Apache License, Version 2.0 (the "License");
-> you may not use this file except in compliance with the License.
-> You may obtain a copy of the License at
->
->    http://www.apache.org/licenses/LICENSE-2.0
->
-> Unless required by applicable law or agreed to in writing, software
-> distributed under the License is distributed on an "AS IS" BASIS,
-> WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-> See the License for the specific language governing permissions and
-> limitations under the License.
-> ```
+- 🧱 **Single universal APK** — ships `arm64-v8a` + `armeabi-v7a`. No more two separate apps; the
+  install automatically runs guest apps in the device's native bitness, with a clear message when an
+  app needs the other architecture.
+- 🎨 **Material 3 UI remake** — dynamic **Material You** color, light/dark/system **theme picker**,
+  live search, edge-to-edge, an SAF **"Open APK"** picker (no storage permission), new launcher icon.
+- 🛡️ **Packer / protection detection** — identifies the packer an app uses right in the list and
+  before dumping: **Ijiami, 360 Jiagu, Tencent Legu, Bangcle/SecNeo, Baidu, Alibaba, NetEase,
+  DexProtector, pairip**, and more — with a **VMP warning** when method virtualization means a dump
+  can't be complete.
+- 📤 **Share / export dumps** — zip the dumped dex (renamed `classes.dex`, `classes2.dex`, … so
+  tools like jadx open them directly) and share, or open the output folder.
+- 🧩 **Packer-aware dumping** — anti-self-kill hardening (seccomp + inline libc/ptrace hooks) lets
+  many packers run far enough to decrypt, the target's `Application.onCreate` is driven so init-time
+  packers materialise their code, and stub/host-dex filtering keeps the output to **only the target
+  app's** `.dex` (renamed `classes.dex`, `classes2.dex`, … in the export zip).
+- ⚙️ **More settings** — show system apps, choose output path, hook-dump / deep-unpack toggles.
+
+---
+
+## What it can (and can't) dump
+
+| Target | Result |
+|---|---|
+| **Normal / unprotected apps** | ✅ **Full dump** — verified on Android 17: Open Camera (7 MB, 5336 classes), LocalSend (Flutter), Caffeine |
+| **Packed apps** (360 Jiagu, Bangcle, Tencent, …) | ⚠️ **Partial** — captures everything reachable from the app's classloader chain. Some packers decrypt the real dex into a private/isolated classloader and will yield only the shell; fully following those needs a native class-load hook (planned). |
+| **VMP / Dex2C** — e.g. **Ijiami DexVMP** (MovieBox) | ❌ **Class structure only.** The real method bodies run on the packer's own native VM and are **not standard DEX bytecode**, so **no DEX dumper (root or not) can recover them** — that needs VMP devirtualization. RE flags these apps up-front with a **VMP** badge. |
+
+> The protection badges mean you always know *before* dumping what you'll get out of an app.
+
+---
+
+## Build
+
+Requirements: JDK 17 (or 21), Android SDK with **NDK `27.0.12077973`** and **CMake `3.22.1`**.
+
+```bash
+echo "sdk.dir=$ANDROID_HOME" > local.properties
+./gradlew :app:assembleDebug
+# → app/build/outputs/apk/debug/app-debug.apk  (universal: arm64 + arm32)
+```
+
+## Usage
+
+1. Install and open **BlackDex RE**.
+2. Pick an installed app, or tap **Open APK** to choose an `.apk`. A protection badge tells you if
+   it's packed.
+3. Confirm. The app is launched in the sandbox and its DEX is snapshotted from memory.
+4. On success, **Share** the zipped dex or **Open folder**. Default output:
+   `/sdcard/Android/data/com.riyadm.dexre/files/dump/<package>/`
+
+**Settings** — theme & dynamic color, show system apps, output path, *Hook dump* (ART hooks for
+better success on packers), *Deep unpacking* (restore in-memory code items; slower).
+
+---
+
+## Architecture note (32-bit vs 64-bit)
+
+A process runs native code of exactly one bitness. From one install:
+
+- On a **64-bit device**: dumps 64-bit apps and pure-Java apps of any architecture.
+- On a **32-bit device**: dumps 32-bit apps and pure-Java apps.
+
+A 32-bit-**only** app that needs its native code at startup can't run inside a 64-bit host (and
+vice-versa) — a platform limitation, not a bug. RE detects this and tells you instead of failing
+silently, and only lists apps the current install can actually dump.
+
+---
+
+## How it works
+
+BlackDex installs the target into a private sandbox, spins up a pre-declared proxy process,
+hijacks `ActivityThread` via reflection to build the target's `Application` inside that process,
+then a native library (`libblackdex.so`) walks the ART `DexFile` cookies and copies each DEX image
+out of memory. A packer that decrypts its real DEX at runtime therefore ends up writing that
+decrypted DEX to disk.
+
+## Credits
+
+Original [BlackDex](https://github.com/CodingGay/BlackDex) by CodingGay ·
+[VirtualApp](https://github.com/asLody/VirtualApp) ·
+[VirtualAPK](https://github.com/didi/VirtualAPK) ·
+[FreeReflection](https://github.com/tiann/FreeReflection) ·
+[AndroidHiddenApiBypass](https://github.com/LSPosed/AndroidHiddenApiBypass) ·
+[Dobby](https://github.com/jmpews/Dobby) ·
+[xHook](https://github.com/iqiyi/xHook) ·
+[lkchandexfile](https://github.com/lkchan724/lkchandexfile)
+
+## License
+
+Apache-2.0, inherited from upstream. For security research and analysis of software you are
+authorised to analyse.

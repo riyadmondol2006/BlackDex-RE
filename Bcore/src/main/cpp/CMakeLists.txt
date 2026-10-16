@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.4.1)
 set(DOBBY_SOURCE_DIR ./Dobby)
 # 指定静态链接，否则默认动态链接
 set(GENERATE_SHARED OFF)
+# Silence Dobby's verbose runtime logging in release output.
+set(DOBBY_DEBUG OFF CACHE BOOL "" FORCE)
 add_subdirectory(${DOBBY_SOURCE_DIR} blackdex_d.out)
 
 # Creates and names a library, sets it as either STATIC

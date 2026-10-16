@@ -189,7 +189,11 @@ public class BProcessManager {
 
     public void onProcessDie(ProcessRecord record) {
         synchronized (mProcessLock) {
-            record.kill();
+            // Do NOT force-kill here. Packed apps (e.g. Ijiami) fork a watchdog child, which
+            // can make the guest's binder look dead to our death-recipient even though the main
+            // process is healthy and still unpacking. Killing it there would abort the dump.
+            // If the process is genuinely dead the OS has already reaped it; otherwise let it
+            // run to completion.
             Map<String, ProcessRecord> remove = mProcessMap.remove(record.buid);
             if (remove != null)
                 remove.remove(record.processName);

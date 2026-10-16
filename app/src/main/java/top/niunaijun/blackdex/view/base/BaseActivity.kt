@@ -1,37 +1,19 @@
 package top.niunaijun.blackdex.view.base
 
+import android.os.Build
+import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import androidx.core.view.WindowCompat
 
 /**
- *
- * @Description:BaseActivity
- * @Author: wukaicheng
- * @CreateDate: 2021/5/4 15:58
+ * Base activity: enables edge-to-edge so Material 3 surfaces draw behind the system bars.
  */
 open class BaseActivity : AppCompatActivity() {
 
-    protected fun initToolbar(
-        toolbar: Toolbar,
-        title: Int,
-        showBack: Boolean = false,
-        onBack: (() -> Unit)? = null
-    ) {
-        setSupportActionBar(toolbar)
-        toolbar.setTitle(title)
-        if (showBack) {
-            supportActionBar?.let {
-                it.setDisplayHomeAsUpEnabled(true)
-                toolbar.setNavigationOnClickListener {
-                    if (onBack != null) {
-                        onBack()
-                    } else {
-                        finish()
-                    }
-                }
-            }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
         }
+        super.onCreate(savedInstanceState)
     }
-
-
 }

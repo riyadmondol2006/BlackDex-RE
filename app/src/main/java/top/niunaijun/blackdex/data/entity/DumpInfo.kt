@@ -8,7 +8,8 @@ package top.niunaijun.blackdex.data.entity
  */
 data class DumpInfo(
         val state: Int,
-        val msg: String = ""
+        val msg: String = "",
+        val dir: String = ""
 ) {
     companion object {
         const val SUCCESS = 200

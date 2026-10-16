@@ -6,27 +6,42 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
+import android.content.pm.ServiceInfo;
+import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
 import top.niunaijun.blackbox.R;
-import top.niunaijun.blackbox.utils.compat.BuildCompat;
-
 
 /**
- * Created by Milk on 3/2/21.
- * * ∧＿∧
- * (`･ω･∥
- * 丶　つ０
- * しーＪ
- * 此处无Bug
+ * Keeps the BlackDex server process ({@code :black}) alive and OUT of the cached state.
+ *
+ * On Android 12+ the Cached Apps Freezer freezes cached processes; a frozen server process
+ * makes the next synchronous Binder call from the main process fail ("Sync transaction while
+ * frozen") and the OS then kills it. Hosting a real, persistent foreground service in the
+ * server process keeps it in a non-cacheable state so the whole install/launch/dump pipeline
+ * survives. (The old "show a notification then immediately cancel it" hack no longer produces
+ * a real FGS on modern Android and is removed.)
  */
 public class DaemonService extends Service {
     public static final String TAG = "DaemonService";
-    private static final int NOTIFY_ID = (int) (System.currentTimeMillis() / 1000);
+    private static final int NOTIFY_ID = 0x4244; // 'BD'
+    private static final String CHANNEL_ID = "blackdex_sandbox";
+
+    public static void start(Context context) {
+        try {
+            Intent intent = new Intent(context, DaemonService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent);
+            } else {
+                context.startService(intent);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "startForegroundService failed", t);
+        }
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -36,71 +51,53 @@ public class DaemonService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        initNotificationManager();
+        createChannel();
+        goForeground();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Intent innerIntent = new Intent(this, DaemonInnerService.class);
-        startService(innerIntent);
-        if (BuildCompat.isOreo()) {
-            showNotification();
-        }
+        goForeground();
         return START_STICKY;
+    }
+
+    private void goForeground() {
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("BlackDex")
+                .setContentText("Sandbox running")
+                .setSmallIcon(R.drawable.ic_notification)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                .build();
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFY_ID, notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(NOTIFY_ID, notification);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "startForeground failed", t);
+        }
+    }
+
+    private void createChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null) return;
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID, "BlackDex Sandbox", NotificationManager.IMPORTANCE_LOW);
+            channel.setShowBadge(false);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_SECRET);
+            nm.createNotificationChannel(channel);
+        }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         Log.d(TAG, "onDestroy");
-    }
-
-    private void showNotification() {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), getPackageName() + ".blackbox")
-                .setPriority(NotificationCompat.PRIORITY_MAX);
-        startForeground(NOTIFY_ID, builder.build());
-    }
-
-    private void initNotificationManager() {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        String CHANNEL_ONE_ID = getPackageName() + ".blackbox";
-        String CHANNEL_ONE_NAME = "blackbox";
-        if (BuildCompat.isOreo()) {
-            NotificationChannel notificationChannel = new NotificationChannel(CHANNEL_ONE_ID,
-                    CHANNEL_ONE_NAME, NotificationManager.IMPORTANCE_HIGH);
-            notificationChannel.enableLights(true);
-            notificationChannel.setLightColor(Color.RED);
-            notificationChannel.setShowBadge(true);
-            notificationChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-            nm.createNotificationChannel(notificationChannel);
-        }
-    }
-
-    public static class DaemonInnerService extends Service {
-        @Override
-        public void onCreate() {
-            Log.i(TAG, "DaemonInnerService -> onCreate");
-            super.onCreate();
-        }
-
-        @Override
-        public int onStartCommand(Intent intent, int flags, int startId) {
-            Log.i(TAG, "DaemonInnerService -> onStartCommand");
-            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            nm.cancel(NOTIFY_ID);
-            stopSelf();
-            return super.onStartCommand(intent, flags, startId);
-        }
-
-        @Override
-        public IBinder onBind(Intent intent) {
-            return null;
-        }
-
-        @Override
-        public void onDestroy() {
-            Log.i(TAG, "DaemonInnerService -> onDestroy");
-            super.onDestroy();
-        }
     }
 }

@@ -9,91 +9,76 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import com.afollestad.materialdialogs.MaterialDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import top.niunaijun.blackbox.utils.compat.BuildCompat
 import top.niunaijun.blackdex.R
 
 /**
- *
- * @Description:request permission activity
- * @Author: wukaicheng
- * @CreateDate: 2021/5/30 21:27
+ * Base activity that requests write/all-files access only when the user opts into a
+ * custom (public) output path. The default output path is the app's private external
+ * files dir and needs no permission.
  */
-open class PermissionActivity:BaseActivity() {
+open class PermissionActivity : BaseActivity() {
 
     protected var requestPermissionCallback: ((Boolean) -> Unit)? = null
 
     protected fun requestStoragePermission() {
-        @RequiresApi(Build.VERSION_CODES.R)
         if (BuildCompat.isR()) {
             if (Environment.isExternalStorageManager()) {
-                //fuck 请求了读取全部文件权限竟然还要申请普通读写权限
-                requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                requestPermissionCallback?.invoke(true)
             } else {
-                MaterialDialog(this).show {
-                    title(R.string.grant_permission)
-                    message(res = R.string.request_storage_msg)
-                    negativeButton(res = R.string.request_later) {
-                        if(requestPermissionCallback!=null){
-                            requestPermissionCallback!!(false)
-                        }
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.grant_permission)
+                    .setMessage(R.string.request_storage_msg)
+                    .setNegativeButton(R.string.request_later) { _, _ ->
+                        requestPermissionCallback?.invoke(false)
                     }
-                    positiveButton(res = R.string.jump_grant) {
-                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                        intent.data = Uri.fromParts("package", packageName, null)
-                        startActivity(intent)
-                    }
-                }
-            }
-        } else if (BuildCompat.isM() && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-            requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }else{
-            if(requestPermissionCallback!=null){
-                requestPermissionCallback!!(true)
-            }
-        }
-    }
-
-
-    @RequiresApi(Build.VERSION_CODES.M)
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            if (it) {
-                if(requestPermissionCallback!=null){
-                    requestPermissionCallback!!(true)
-                }
-            } else {
-                MaterialDialog(this).show {
-                    title(res = R.string.request_fail)
-                    message(res = R.string.denied_msg)
-                    if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                        positiveButton(res = R.string.request_again) {
-                            requestStoragePermission()
-                        }
-
-                    } else {
-                        positiveButton(res = R.string.jump_grant) {
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                            val uri = Uri.fromParts("package", packageName, null)
-                            intent.data = uri
+                    .setPositiveButton(R.string.jump_grant) { _, _ ->
+                        runCatching {
+                            val intent =
+                                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                            intent.data = Uri.fromParts("package", packageName, null)
                             startActivity(intent)
                         }
                     }
-                    negativeButton(res = R.string.request_later) {
-                        if(requestPermissionCallback!=null){
-                            requestPermissionCallback!!(false)
-                        }
-                    }
-                }
+                    .show()
             }
-        }
-
-
-    override fun onStart() {
-        super.onStart()
-        if(requestPermissionCallback!=null){
-            requestStoragePermission()
+        } else if (BuildCompat.isM() &&
+            checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+            PackageManager.PERMISSION_DENIED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            requestPermissionCallback?.invoke(true)
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                requestPermissionCallback?.invoke(true)
+            } else {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.request_fail)
+                    .setMessage(R.string.denied_msg)
+                    .apply {
+                        if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                            setPositiveButton(R.string.request_again) { _, _ -> requestStoragePermission() }
+                        } else {
+                            setPositiveButton(R.string.jump_grant) { _, _ ->
+                                runCatching {
+                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                    intent.data = Uri.fromParts("package", packageName, null)
+                                    startActivity(intent)
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton(R.string.request_later) { _, _ ->
+                        requestPermissionCallback?.invoke(false)
+                    }
+                    .show()
+            }
+        }
 }

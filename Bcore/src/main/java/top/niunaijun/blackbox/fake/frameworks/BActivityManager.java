@@ -6,6 +6,7 @@ import android.os.RemoteException;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.system.ServiceManager;
 import top.niunaijun.blackbox.core.system.am.IBActivityManagerService;
+import top.niunaijun.blackbox.entity.AppConfig;
 
 /**
  * Created by Milk on 4/14/21.
@@ -29,6 +30,30 @@ public class BActivityManager {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Spawn (and bind + dump) the guest process directly, without launching a stub Activity.
+     * The guest-side {@code initProcess} performs the whole DEX dump synchronously while the
+     * init-process provider call is in flight, so the proxy process cannot be torn down
+     * mid-dump on Android 13+.
+     */
+    public AppConfig initProcess(String packageName, String processName, int userId) {
+        try {
+            return getService().initProcess(packageName, processName, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean dumpApp(String packageName, String processName, int userId) {
+        try {
+            return getService().dumpApp(packageName, processName, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     private IBActivityManagerService getService() {

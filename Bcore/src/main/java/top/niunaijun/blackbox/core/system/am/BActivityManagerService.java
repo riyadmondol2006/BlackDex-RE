@@ -175,6 +175,27 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
         return processRecord.getClientConfig();
     }
 
+    /**
+     * Spin up the guest process (kept alive by a foreground service) and trigger the
+     * application bind + DEX dump directly over its binder, with no stub Activity. The bind
+     * call is made OUTSIDE the process lock so the guest's own framework callbacks (which may
+     * need that lock) cannot deadlock against us. The dump itself runs asynchronously inside
+     * the guest; callers poll for the output files.
+     */
+    @Override
+    public boolean dumpApp(String packageName, String processName, int userId) throws RemoteException {
+        ProcessRecord processRecord = BProcessManager.get().startProcessLocked(packageName, processName, userId, -1, Binder.getCallingUid(), Binder.getCallingPid());
+        if (processRecord == null || processRecord.bActivityThread == null)
+            return false;
+        try {
+            processRecord.bActivityThread.bindApplication();
+        } catch (Throwable e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
     @Override
     public void restartProcess(String packageName, String processName, int userId) throws RemoteException {
         BProcessManager.get().restartAppProcess(packageName, processName, userId);

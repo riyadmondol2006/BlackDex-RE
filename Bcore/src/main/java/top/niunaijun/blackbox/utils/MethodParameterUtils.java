@@ -10,6 +10,27 @@ import top.niunaijun.blackbox.BlackBoxCore;
 
 public class MethodParameterUtils {
 
+	/**
+	 * Coerce a reflected argument to int regardless of whether the framework passed an
+	 * Integer or a Long. On Android 13+ (API 33) many PackageManager/StorageManager
+	 * methods changed their {@code flags} parameter from {@code int} to {@code long}
+	 * (e.g. {@code PackageManager.ApplicationInfoFlags}); a hard {@code (int) args[i]}
+	 * cast then throws {@link ClassCastException}. The low 32 bits hold the classic flags.
+	 */
+	public static int toInt(Object value) {
+		if (value instanceof Number) {
+			return ((Number) value).intValue();
+		}
+		return 0;
+	}
+
+	/** Coerce a reflected argument to long (Integer or Long both accepted). */
+	public static long toLong(Object value) {
+		if (value instanceof Number) {
+			return ((Number) value).longValue();
+		}
+		return 0L;
+	}
 
 	public static String replaceFirstAppPkg(Object[] args) {
 		if (args == null) {

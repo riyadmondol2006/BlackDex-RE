@@ -3,13 +3,14 @@ package top.niunaijun.blackdex.app
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
-import com.umeng.commonsdk.UMConfigure
+import androidx.appcompat.app.AppCompatDelegate
+import com.google.android.material.color.DynamicColors
 
 /**
+ * Application entry point.
  *
- * @Description:
- * @Author: wukaicheng
- * @CreateDate: 2021/4/29 21:21
+ * Boots the BlackDex sandbox core in [attachBaseContext]/[onCreate] and applies
+ * Material You dynamic color to every activity.
  */
 class App : Application() {
 
@@ -34,6 +35,22 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         AppManager.doOnCreate(mContext)
-        UMConfigure.init(this, "60b373136c421a3d97d23c29", "Github", UMConfigure.DEVICE_TYPE_PHONE, null)
+        applyTheme()
+    }
+
+    fun applyTheme() {
+        runCatching {
+            val loader = AppManager.mBlackBoxLoader
+            AppCompatDelegate.setDefaultNightMode(
+                when (loader.getThemeMode()) {
+                    1 -> AppCompatDelegate.MODE_NIGHT_NO
+                    2 -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+            )
+            if (loader.isDynamicColor()) {
+                DynamicColors.applyToActivitiesIfAvailable(this)
+            }
+        }
     }
 }

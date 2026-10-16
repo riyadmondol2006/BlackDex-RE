@@ -1,5 +1,6 @@
 package top.niunaijun.blackbox.fake.service;
 
+import top.niunaijun.blackbox.utils.MethodParameterUtils;
 import android.os.IInterface;
 import android.os.Process;
 import android.os.storage.StorageVolume;
@@ -63,9 +64,9 @@ public class IStorageManagerProxy extends BinderInvocationStub {
                 return volumeList;
             }
             try {
-                int uid = (int) args[0];
+                int uid = MethodParameterUtils.toInt(args[0]);
                 String packageName = (String) args[1];
-                int flags = (int) args[2];
+                int flags = MethodParameterUtils.toInt(args[2]);
                 StorageVolume[] volumeList = BlackBoxCore.getBStorageManager().getVolumeList(uid, packageName, flags, BActivityThread.getUserId());
                 if (volumeList == null) {
                     return method.invoke(who, args);

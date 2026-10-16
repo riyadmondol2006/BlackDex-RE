@@ -1,37 +1,74 @@
 <resources>
+    <string name="app_name">BlackDex RE</string>
+
+    <!-- main -->
+    <string name="search_hint">Search apps</string>
+    <string name="empty_apps">No dumpable apps found</string>
+    <string name="open_apk">Open APK</string>
     <string name="filter">Filter</string>
-    <string name="choose">Select</string>
     <string name="log">Logcat</string>
+    <string name="choose">Select</string>
     <string name="open_source">Open Source</string>
-    <string name="app_setting">Setting</string>
-    <string name="unpack_success">Unpack successfully</string>
+    <string name="app_setting">Settings</string>
+
+    <!-- dump result -->
+    <string name="unpack_success">Unpack successful</string>
     <string name="unpack_fail">Unpack failed</string>
-    <string name="confirm">Confirm</string>
-    <string name="github">Github</string>
-    <string name="jump_issue">Unknown error，may be the app is incompatible or may have an environment detection that causes the failure, You can open an Issue on GitHub(https://github.com/CodingGay/BlackDex).</string>
+    <string name="confirm">OK</string>
+    <string name="github">GitHub</string>
+    <string name="jump_issue">Unknown error. The app may be incompatible or may have environment detection that causes the failure. You can open an issue on GitHub.</string>
     <string name="cancel">Cancel</string>
-    <string name="dex_save">.dex files were saved in: %1$s</string>
+    <string name="dex_save">.dex files were saved in:\n%1$s</string>
     <string name="error_msg">Error: %1$s</string>
-    <string name="grant_permission">Permission Required</string>
+    <string name="open_folder">Open folder</string>
+    <string name="share">Share</string>
+
+    <!-- permission -->
+    <string name="grant_permission">Permission required</string>
     <string name="request_again">Again</string>
     <string name="request_later">Later</string>
-    <string name="jump_grant">Grant Permission</string>
-    <string name="request_fail">Grant permission failed.</string>
-    <string name="denied_msg">Deny app permission to read and write local files will disable this feature.</string>
-    <string name="request_storage_msg">This app can not read and write local files correctly without the required permission.</string>
+    <string name="jump_grant">Grant permission</string>
+    <string name="request_fail">Grant permission failed</string>
+    <string name="denied_msg">Denying file read/write permission will disable this feature.</string>
+    <string name="request_storage_msg">This app cannot read and write local files correctly without the required permission.</string>
 
-    <string name="file_save">File</string>
+    <!-- appearance -->
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="dynamic_color">Dynamic colors (Material You)</string>
+    <string name="dynamic_color_desc">Use colors from your wallpaper (Android 12+).</string>
+    <string name="show_system_apps">Show system apps</string>
+    <string name="show_system_apps_desc">Include system apps in the list.</string>
+
+    <!-- settings -->
+    <string name="file_save">Output</string>
     <string name="use_default_file">Use default storage path</string>
-    <string name="rewrite_file_path">Customize the storage path</string>
+    <string name="use_default_file_desc">Save dumped dex to the app\'s private files directory (no permission needed).</string>
+    <string name="rewrite_file_path">Custom storage path</string>
     <string name="warn">Warning</string>
-    <string name="advanced_setting">Advanced Settings</string>
-    <string name="fix_code_item">Deep Unpacking</string>
-    <string name="fix_code_item_desc">Load the instructions which were extracted in memory, and restore them into DexFile.</string>
-    <string name="fix_code_item_message">BlackDex will fix the DexCode in deep unpacking mode. It is possible that following cases will occur \n\n1.BlackDex will take more time to unpack an app, it expected to take a few minutes or more. \n2.The target application is possible to crash when BlackDex is unpacking it(Environment detection, etc). \n3.The failure rate of unpacking will be increased. \n4.It may not always fix all methods successfully.
-    </string>
+    <string name="advanced_setting">Advanced</string>
+    <string name="about">About</string>
+    <string name="version">Version</string>
+    <string name="fix_code_item">Deep unpacking</string>
+    <string name="fix_code_item_desc">Load the instructions extracted in memory and restore them into the DexFile.</string>
+    <string name="fix_code_item_message">BlackDex will fix the DexCode in deep unpacking mode. The following may occur:\n\n1. Unpacking takes longer (minutes or more).\n2. The target app may crash while being unpacked (environment detection, etc.).\n3. The failure rate may increase.\n4. It may not always fix all methods successfully.</string>
+    <string name="hook_dump_desc">Use hooks to improve the unpacking success rate.</string>
+    <string name="hook_dump">Hook dump</string>
 
-    <string name="classes_progress" translatable="false">classes.dex (%1d/%1d)</string>
+    <!-- progress -->
+    <string name="classes_progress" translatable="false">classes.dex (%1$d/%2$d)</string>
     <string name="dumping">Unpacking…</string>
-    <string name="hook_dump_desc">Use hook to improve the success rate of unpacking</string>
-    <string name="hook_dump">Hook Dump</string>
+    <string name="dump_preparing">Launching sandbox…</string>
+    <string name="dump_running">Dumping methods…</string>
+
+    <!-- protection -->
+    <string name="protection_label">Protection: %1$s</string>
+    <string name="vmp_warning">⚠ Method-virtualized (VMP) — the dump will contain class structure but not the virtualized method bodies.</string>
+
+    <!-- abi -->
+    <string name="abi_mismatch_title">Wrong architecture</string>
+    <string name="abi_mismatch_msg">This app only ships native libraries for a different CPU architecture. This install runs guest apps in %1$s, so it can only dump apps with matching native code (or pure-Java apps). Install BlackDex RE on a device of the other architecture to dump this one.</string>
 </resources>

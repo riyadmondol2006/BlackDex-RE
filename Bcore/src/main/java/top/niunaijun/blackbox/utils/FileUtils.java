@@ -222,9 +222,27 @@ public class FileUtils {
         }
     }
 
+    /**
+     * Mark a dex/apk/jar file read-only. Android 14+ (API 34) refuses to load a dex file
+     * that is writable by the app ("Writable dex file '...' is not allowed"), so every
+     * code file the sandbox classloader opens must have its owner-write bit cleared.
+     */
+    public static void makeReadOnly(File file) {
+        if (file == null || !file.exists()) return;
+        try {
+            file.setReadOnly();
+            android.system.Os.chmod(file.getAbsolutePath(), 0444);
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static void copyFile(InputStream inputStream, File target) {
         FileOutputStream outputStream = null;
         try {
+            if (target.exists()) {
+                target.setWritable(true);
+                target.delete();
+            }
             outputStream = new FileOutputStream(target);
             byte[] data = new byte[4096];
             int len;
@@ -244,6 +262,10 @@ public class FileUtils {
         FileInputStream inputStream = null;
         FileOutputStream outputStream = null;
         try {
+            if (target.exists()) {
+                target.setWritable(true);
+                target.delete();
+            }
             inputStream = new FileInputStream(source);
             outputStream = new FileOutputStream(target);
             FileChannel iChannel = inputStream.getChannel();

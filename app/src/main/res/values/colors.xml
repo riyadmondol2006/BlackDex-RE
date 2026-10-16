@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#3F3F3F</color>
-    <color name="primary_dark">#3F3F3F</color>
-    <color name="primary_light">#3F3F3F</color>
-    <color name="accent">#ffffff</color>
-    <color name="primary_text">#212121</color>
-    <color name="secondary_text">#757575</color>
+    <!-- Brand fallback palette (used when Material You dynamic color is unavailable). -->
+    <color name="brand_primary">#4C5EE0</color>
+    <color name="brand_on_primary">#FFFFFF</color>
+    <color name="brand_primary_container">#DEE0FF</color>
+    <color name="brand_on_primary_container">#000F5E</color>
+    <color name="brand_secondary">#5B5D72</color>
+
     <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
 </resources>

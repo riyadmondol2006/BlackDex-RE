@@ -3,6 +3,7 @@ package top.niunaijun.blackbox;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -112,7 +113,11 @@ public class BlackBoxCore extends ClientConfiguration {
         String processName = getProcessName(getContext());
         if (processName.equals(BlackBoxCore.getHostPkg())) {
             mProcessType = ProcessType.Main;
-            startLogcat();
+            // Debug aid only: never shell out to logcat / write logs to public storage in a
+            // release build (it is pointless there and trips AV "spyware" heuristics).
+            if ((context.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                startLogcat();
+            }
         } else if (processName.endsWith(getContext().getString(R.string.black_box_service_name))) {
             mProcessType = ProcessType.Server;
         } else {

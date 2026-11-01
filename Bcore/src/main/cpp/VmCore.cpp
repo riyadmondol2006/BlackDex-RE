@@ -11,6 +11,7 @@
 #include <hook/ProcessHook.h>
 #include <hook/VMClassLoaderHook.h>
 #include <hook/UnixFileSystemHook.h>
+#include <hook/DexFileHook.h>
 #include "DexDump.h"
 #include "utils/HexDump.h"
 #import "xhook/xhook.h"
@@ -103,7 +104,7 @@ int VmCore::getCallingUid(JNIEnv *env, int orig) {
 jobject VmCore::findMethod(JNIEnv *env, const char *className, const char *methodName,
                            const char *signature) {
     try {
-        if (!is_str_utf8(className) || !is_str_utf8(methodName) || !is_str_utf8(methodName)) {
+        if (!is_str_utf8(className) || !is_str_utf8(methodName) || !is_str_utf8(signature)) {
             return nullptr;
         }
         auto clazz = (jclass) env->CallStaticObjectMethod(VMEnv.VMCoreClass, VMEnv.findMethod,
@@ -146,6 +147,7 @@ void nativeHook(JNIEnv *env) {
     UnixFileSystemHook::init(env);
 //    VMClassLoaderHook::init(env);
     ProcessHook::init(env);
+    DexFileHook::init(env);
 }
 
 void hideXposed(JNIEnv *env, jclass clazz) {

@@ -32,11 +32,13 @@ public class NativeUtils {
             nativeLibDir.mkdirs();
         }
         try (ZipFile zipfile = new ZipFile(apk.getAbsolutePath())) {
-            if (findAndCopyNativeLib(zipfile, Build.CPU_ABI, nativeLibDir)) {
-                return;
+            // Copy the libs for the runtime the guest will run in: arm64 normally, armeabi-v7a
+            // for 32-bit-only guests (dumped in the app_process32 helper).
+            for (String abi : AbiUtils.nativeLibAbiCandidates(apk)) {
+                if (findAndCopyNativeLib(zipfile, abi, nativeLibDir)) {
+                    return;
+                }
             }
-
-            findAndCopyNativeLib(zipfile, "armeabi", nativeLibDir);
         } finally {
             //Log.d(TAG, "Done! +" + (System.currentTimeMillis() - startTime) + "ms");
         }

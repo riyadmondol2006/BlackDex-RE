@@ -1,5 +1,8 @@
 package top.niunaijun.blackbox.core;
 
+import android.app.Application;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.util.Log;
 
 import androidx.annotation.Keep;
@@ -40,6 +43,9 @@ public class VMCore {
         System.loadLibrary("blackdex");
     }
 
+    /** Guest Application when running in the standalone 32-bit helper (no BActivityThread there). */
+    public static volatile Application sStandaloneApplication;
+
     public static native void init(int apiLevel);
 
     public static native void enableIO();
@@ -52,12 +58,46 @@ public class VMCore {
 
     private static native void hookDumpDex(String dir);
 
+    /** Progress sink for {@link #cookieDumpDex(ClassLoader, String, PackageInfo, File, boolean, Application, DumpProgress)}. */
+    public interface DumpProgress {
+        void onProgress(int total, int current);
+    }
+
+    /** Sandbox (in-process) dump: components come from the virtual PM, progress goes to the monitor. */
     public static void cookieDumpDex(ClassLoader classLoader, String packageName) {
+        PackageInfo components = null;
+        try {
+            int flags = PackageManager.GET_ACTIVITIES | PackageManager.GET_SERVICES
+                    | PackageManager.GET_RECEIVERS | PackageManager.GET_PROVIDERS;
+            components = BlackBoxCore.getBPackageManager()
+                    .getPackageInfo(packageName, flags, BActivityThread.getUserId());
+        } catch (Throwable ignored) {
+        }
+        File file = new File(BlackBoxCore.get().getDexDumpDir(), packageName);
+        DumpResult result = new DumpResult();
+        result.dir = file.getAbsolutePath();
+        result.packageName = packageName;
+        cookieDumpDex(classLoader, packageName, components, file, BlackBoxCore.get().isFixCodeItem(),
+                BActivityThread.getApplication(),
+                (total, current) -> BlackBoxCore.getBDumpManager()
+                        .noticeMonitor(result.dumpProcess(total, current)));
+    }
+
+    /**
+     * Server-independent dump core, shared by the sandbox and the 32-bit app_process helper.
+     *
+     * @param components manifest components to force-load (may be null)
+     * @param outDir     directory the .dex files are written to
+     * @param app        the guest Application, if created (its classloaders are scanned too)
+     */
+    public static void cookieDumpDex(ClassLoader classLoader, String packageName, PackageInfo components,
+                                     File outDir, boolean fixCodeItem, Application app,
+                                     DumpProgress progress) {
         // 1) Seed with the manifest's declared component classes (Activities/Services/Receivers/
         //    Providers). Loading e.g. the launcher Activity forces the packer to decrypt and load
         //    the REAL app dex that otherwise only materialises when the UI starts — we never
         //    launch an Activity in the dump flow, so this is how that code gets into memory.
-        forceLoadComponents(classLoader, packageName);
+        forceLoadComponents(classLoader, components);
         // 2) Now load every class name known across the (now-expanded) classloader chain, so
         //    extraction-style packers materialise each method body.
         forceLoadAllClasses(classLoader);
@@ -67,30 +107,31 @@ public class VMCore {
         // Packers frequently install their decrypted dex into a brand-new DexClassLoader and set
         // it as the context/application classloader, so a single root misses it.
         final List<Long> cookies = new java.util.ArrayList<>();
-        for (ClassLoader root : collectRootClassLoaders(classLoader)) {
+        for (ClassLoader root : collectRootClassLoaders(classLoader, app)) {
             for (long c : DexFileCompat.getAllCookies(root)) {
                 if (c != 0 && !cookies.contains(c)) cookies.add(c);
             }
         }
+        // Dexes the guest opened into classloaders we can't reach (private child loaders).
+        for (long c : sOpenedCookies) {
+            if (!cookies.contains(c)) cookies.add(c);
+        }
         if (cookies.isEmpty()) {
             cookies.addAll(DexFileCompat.getCookies(classLoader));
         }
-        File file = new File(BlackBoxCore.get().getDexDumpDir(), packageName);
+        File file = outDir;
 
-        DumpResult result = new DumpResult();
-        result.dir = file.getAbsolutePath();
-        result.packageName = packageName;
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         ExecutorService executorService = Executors.newFixedThreadPool(availableProcessors <= 0 ? 1 : availableProcessors);
         CountDownLatch countDownLatch = new CountDownLatch(cookies.size());
         AtomicInteger atomicInteger = new AtomicInteger(0);
 
-        BlackBoxCore.getBDumpManager().noticeMonitor(result.dumpProcess(cookies.size(), atomicInteger.getAndIncrement()));
+        progress.onProgress(cookies.size(), atomicInteger.getAndIncrement());
         for (int i = 0; i < cookies.size(); i++) {
             long cookie = cookies.get(i);
             if (cookie == 0) {
                 countDownLatch.countDown();
-                BlackBoxCore.getBDumpManager().noticeMonitor(result.dumpProcess(cookies.size(), atomicInteger.getAndIncrement()));
+                progress.onProgress(cookies.size(), atomicInteger.getAndIncrement());
                 continue;
             }
             FileUtils.mkdirs(file);
@@ -101,15 +142,19 @@ public class VMCore {
                 }
             }
             executorService.execute(() -> {
-                cookieDumpDex(cookie, file.getAbsolutePath(), BlackBoxCore.get().isFixCodeItem());
-                BlackBoxCore.getBDumpManager().noticeMonitor(result.dumpProcess(cookies.size(), atomicInteger.getAndIncrement()));
-                countDownLatch.countDown();
+                try {
+                    cookieDumpDex(cookie, file.getAbsolutePath(), fixCodeItem);
+                } finally {
+                    progress.onProgress(cookies.size(), atomicInteger.getAndIncrement());
+                    countDownLatch.countDown();
+                }
             });
         }
         try {
             countDownLatch.await();
         } catch (InterruptedException ignored) {
         }
+        executorService.shutdown();
         File[] files = file.listFiles();
         if (files != null) {
             for (File dex : files) {
@@ -120,6 +165,11 @@ public class VMCore {
         }
     }
 
+    /** Install the hook-based dumper (dumps each dex as ART defines classes from it). */
+    public static void installHookDump(String dir) {
+        hookDumpDex(dir);
+    }
+
     /**
      * Best-effort "active loading": ask the classloader to load every class name it exposes.
      * For extraction/on-demand packers this triggers per-class decryption so the real code is
@@ -127,7 +177,7 @@ public class VMCore {
      * initializer side effects are ignored.
      */
     /** The distinct classloaders worth scanning for the target's (possibly packer-loaded) dex. */
-    private static java.util.List<ClassLoader> collectRootClassLoaders(ClassLoader passed) {
+    private static java.util.List<ClassLoader> collectRootClassLoaders(ClassLoader passed, Application app) {
         java.util.List<ClassLoader> roots = new java.util.ArrayList<>();
         addRoot(roots, passed);
         try {
@@ -135,14 +185,40 @@ public class VMCore {
         } catch (Throwable ignored) {
         }
         try {
-            android.app.Application app = top.niunaijun.blackbox.app.BActivityThread.getApplication();
             if (app != null) {
                 addRoot(roots, app.getClassLoader());
                 addRoot(roots, app.getBaseContext() == null ? null : app.getBaseContext().getClassLoader());
             }
         } catch (Throwable ignored) {
         }
+        // Packers often decrypt into a private child DexClassLoader that nothing global points
+        // at (not a parent of, nor installed as, any loader above). Ask ART for every live
+        // BaseDexClassLoader instead; our own/system dex files are filtered out later.
+        for (ClassLoader cl : liveDexClassLoaders()) {
+            addRoot(roots, cl);
+        }
         return roots;
+    }
+
+    /** Every live BaseDexClassLoader in this process (API 28+, via VMDebug), else empty. */
+    private static java.util.List<ClassLoader> liveDexClassLoaders() {
+        java.util.List<ClassLoader> out = new java.util.ArrayList<>();
+        if (android.os.Build.VERSION.SDK_INT < 28) return out;
+        try {
+            Class<?> vmDebug = Class.forName("dalvik.system.VMDebug");
+            Method m = vmDebug.getDeclaredMethod("getInstancesOfClasses", Class[].class, boolean.class);
+            m.setAccessible(true);
+            Object[][] found = (Object[][]) m.invoke(null,
+                    new Class<?>[]{dalvik.system.BaseDexClassLoader.class}, true);
+            if (found != null && found.length > 0 && found[0] != null) {
+                for (Object o : found[0]) {
+                    if (o instanceof ClassLoader) out.add((ClassLoader) o);
+                }
+            }
+        } catch (Throwable e) {
+            Log.d(TAG, "live classloader scan unavailable: " + e);
+        }
+        return out;
     }
 
     private static void addRoot(java.util.List<ClassLoader> roots, ClassLoader cl) {
@@ -153,15 +229,8 @@ public class VMCore {
      * Load the app's declared component classes (from the manifest) to trigger the packer's
      * on-demand dex decryption. These are the entry points real app code hangs off of.
      */
-    private static void forceLoadComponents(ClassLoader classLoader, String packageName) {
+    private static void forceLoadComponents(ClassLoader classLoader, PackageInfo pi) {
         try {
-            int flags = android.content.pm.PackageManager.GET_ACTIVITIES
-                    | android.content.pm.PackageManager.GET_SERVICES
-                    | android.content.pm.PackageManager.GET_RECEIVERS
-                    | android.content.pm.PackageManager.GET_PROVIDERS;
-            android.content.pm.PackageInfo pi = BlackBoxCore.getBPackageManager()
-                    .getPackageInfo(packageName, flags,
-                            top.niunaijun.blackbox.app.BActivityThread.getUserId());
             if (pi == null) return;
             java.util.List<String> names = new java.util.ArrayList<>();
             if (pi.activities != null)
@@ -194,6 +263,28 @@ public class VMCore {
                     classLoader.loadClass(name);
                 } catch (Throwable ignored) {
                 }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Cookies of every dex opened after the IO hooks went in (see DexFileHook.cpp). */
+    private static final List<Long> sOpenedCookies = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Called from native DexFileHook for each dex the guest opens via the DexFile APIs. */
+    @Keep
+    public static void onDexOpened(Object cookie, String sourcePath) {
+        try {
+            if (DexFileCompat.isOwnDexPath(sourcePath)) {
+                return; // BlackDex's own stub/helper apks, not the guest's code
+            }
+            if (cookie instanceof long[]) {
+                for (long c : (long[]) cookie) {
+                    if (c != 0 && !sOpenedCookies.contains(c)) sOpenedCookies.add(c);
+                }
+            } else if (cookie instanceof Long) {
+                long c = (Long) cookie;
+                if (c != 0 && !sOpenedCookies.contains(c)) sOpenedCookies.add(c);
             }
         } catch (Throwable ignored) {
         }
@@ -248,7 +339,9 @@ public class VMCore {
             if (className.endsWith(";")) {
                 className = className.substring(0, className.length() - 1);
             }
-            ClassLoader classLoader = BActivityThread.getApplication().getClassLoader();
+            Application app = sStandaloneApplication != null
+                    ? sStandaloneApplication : BActivityThread.getApplication();
+            ClassLoader classLoader = app.getClassLoader();
             Class<?> aClass = Class.forName(className, false, classLoader);
             if ("<init>".equals(methodName)) {
                 Constructor<?>[] constructors = aClass.getDeclaredConstructors();

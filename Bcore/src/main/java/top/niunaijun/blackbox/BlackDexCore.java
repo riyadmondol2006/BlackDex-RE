@@ -1,5 +1,7 @@
 package top.niunaijun.blackbox;
 
+import top.niunaijun.blackbox.abi32.Abi32Dumper;
+
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -51,6 +53,12 @@ public class BlackDexCore {
         BlackBoxCore.get().ensureServerAlive();
         InstallResult installResult = BlackBoxCore.get().installPackage(packageName);
         if (installResult != null && installResult.success) {
+            if (Abi32Dumper.shouldUse(installResult.packageName)) {
+                // 32-bit-only guest: dump it in the app_process32 helper instead of the
+                // 64-bit sandbox process, which could not load its native code.
+                Abi32Dumper.dumpAsync(installResult.packageName);
+                return installResult;
+            }
             boolean b = BlackBoxCore.get().launchApk(packageName);
             if (!b) {
                 BlackBoxCore.get().uninstallPackage(installResult.packageName);
@@ -66,6 +74,12 @@ public class BlackDexCore {
         BlackBoxCore.get().ensureServerAlive();
         InstallResult installResult = BlackBoxCore.get().installPackage(file);
         if (installResult != null && installResult.success) {
+            if (Abi32Dumper.shouldUse(installResult.packageName)) {
+                // 32-bit-only guest: dump it in the app_process32 helper instead of the
+                // 64-bit sandbox process, which could not load its native code.
+                Abi32Dumper.dumpAsync(installResult.packageName);
+                return installResult;
+            }
             boolean b = BlackBoxCore.get().launchApk(installResult.packageName);
             if (!b) {
                 BlackBoxCore.get().uninstallPackage(installResult.packageName);
@@ -81,6 +95,12 @@ public class BlackDexCore {
         BlackBoxCore.get().ensureServerAlive();
         InstallResult installResult = BlackBoxCore.get().installPackage(file);
         if (installResult != null && installResult.success) {
+            if (Abi32Dumper.shouldUse(installResult.packageName)) {
+                // 32-bit-only guest: dump it in the app_process32 helper instead of the
+                // 64-bit sandbox process, which could not load its native code.
+                Abi32Dumper.dumpAsync(installResult.packageName);
+                return installResult;
+            }
             boolean b = BlackBoxCore.get().launchApk(installResult.packageName);
             if (!b) {
                 BlackBoxCore.get().uninstallPackage(installResult.packageName);
@@ -101,6 +121,9 @@ public class BlackDexCore {
     }
 
     public boolean isRunning() {
+        if (Abi32Dumper.isRunning()) {
+            return true;
+        }
         ActivityManager am = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningAppProcessInfo info : am.getRunningAppProcesses()) {
             for (int i = 0; i < ProxyManifest.FREE_COUNT; i++) {
@@ -128,6 +151,9 @@ public class BlackDexCore {
 
     /** "64-bit" or "32-bit" — the architecture this install runs guest apps in. */
     public String getHostAbi() {
-        return BlackBoxCore.is64Bit() ? "64-bit (arm64-v8a)" : "32-bit (armeabi-v7a)";
+        if (!BlackBoxCore.is64Bit()) {
+            return "32-bit (armeabi-v7a)";
+        }
+        return Abi32Dumper.isAvailable() ? "arm64 + arm32" : "64-bit (arm64-v8a)";
     }
 }

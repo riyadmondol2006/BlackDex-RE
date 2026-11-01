@@ -160,6 +160,15 @@ public class DexFileCompat {
     private static boolean isStubDex(DexFile dexFile) {
         try {
             String name = Reflector.with(dexFile).field("mFileName").get();
+            return isOwnDexPath(name);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** True for dex paths that belong to BlackDex itself or the platform, not the target app. */
+    public static boolean isOwnDexPath(String name) {
+        try {
             if (name == null) return false;
             if (name.contains("/vm.apk") || name.contains("/junit.apk")
                     || name.contains("/empty.apk") || name.contains("/empty.jar")

@@ -295,6 +295,16 @@ public class PackageManagerCompat {
         ai.sourceDir = sourceDir;
 //        ai.uid = p.mExtras.appId;
         ai.uid = baseApplication.uid;
+        // Drop the guest's network-security-config reference. LoadedApk.makeApplication() eagerly
+        // parses it (NetworkSecurityConfigProvider.handleNewApplication), and malformed configs
+        // ("Found multiple conflicting per-domain rules") then abort Application creation before
+        // a packer's stub can decrypt anything. TLS policy is irrelevant to dumping dex.
+        try {
+            java.lang.reflect.Field nsc = ApplicationInfo.class.getDeclaredField("networkSecurityConfigRes");
+            nsc.setAccessible(true);
+            nsc.setInt(ai, 0);
+        } catch (Throwable ignored) {
+        }
 
         if (BuildCompat.isL()) {
             ApplicationInfoL.primaryCpuAbi.set(ai, Build.CPU_ABI);

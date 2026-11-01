@@ -107,20 +107,25 @@ void handleDumpByDexFile(void *dex_file) {
             // Display returned error message to user. Note that this error behavior
             // differs from the error messages shown by the original Dalvik dexdump.
             ALOGE("Open dex error %s", error_msg.c_str());
+            free(buffer);
             return;
         }
 
         char path[1024];
-        sprintf(path, "%s/hook_%d.dex", dumpPath, size);
-        auto fd = open(path, O_CREAT | O_WRONLY, 0600);
-        ssize_t w = write(fd, buffer, size);
-        fsync(fd);
-        if (w > 0) {
-            ALOGE("hook dump dex ======> %s", path);
+        snprintf(path, sizeof(path), "%s/hook_%d.dex", dumpPath, size);
+        auto fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+        if (fd >= 0) {
+            ssize_t w = write(fd, buffer, size);
+            fsync(fd);
+            if (w > 0) {
+                ALOGE("hook dump dex ======> %s", path);
+            } else {
+                remove(path);
+            }
+            close(fd);
         } else {
-            remove(path);
+            ALOGE("hook dump: cannot open %s", path);
         }
-        close(fd);
         free(buffer);
         dumped.push_back(size);
     }
@@ -360,10 +365,12 @@ void fixCodeItem(JNIEnv *env, const art_lkchan::DexFile *dex_file_, size_t begin
                 const art_lkchan::DexFile::MethodId &method_id_item = dex_file_->GetMethodId(
                         cdit.GetMemberIndex());
                 auto method_name = dex_file_->GetMethodName(method_id_item);
-                auto method_signature = dex_file_->GetMethodSignature(
-                        method_id_item).ToString().c_str();
+                // Keep the std::string alive for the call: taking c_str() of the temporary
+                // returned by ToString() would leave a dangling pointer.
+                std::string method_signature = dex_file_->GetMethodSignature(
+                        method_id_item).ToString();
                 auto java_method = VmCore::findMethod(env, class_name.c_str(), method_name,
-                                                      method_signature);
+                                                      method_signature.c_str());
                 if (java_method) {
                     auto artMethod = ArtM::GetArtMethod(env, java_method);
                     const art_lkchan::DexFile::CodeItem *orig_code_item = cdit.GetMethodCodeItem();

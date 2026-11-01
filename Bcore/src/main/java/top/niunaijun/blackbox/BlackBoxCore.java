@@ -70,6 +70,14 @@ public class BlackBoxCore extends ClientConfiguration {
         return sContext.getPackageManager();
     }
 
+    /**
+     * Minimal attach for the standalone 32-bit dump helper (app_process32): only the host Context
+     * is set, so path helpers (BEnvironment, getHostPkg) work. No server, no hooks.
+     */
+    public static void attachStandalone(Context hostContext) {
+        sContext = hostContext;
+    }
+
     public static String getHostPkg() {
         return get().getHostPackageName();
     }

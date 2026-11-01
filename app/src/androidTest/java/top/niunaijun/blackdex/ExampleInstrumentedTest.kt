@@ -19,6 +19,7 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("top.niunaijun.blackdex", appContext.packageName)
+        // Debug builds carry an applicationIdSuffix, so compare against the generated id.
+        assertEquals(BuildConfig.APPLICATION_ID, appContext.packageName)
     }
 }

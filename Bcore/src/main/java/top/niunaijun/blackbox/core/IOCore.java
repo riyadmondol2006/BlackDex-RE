@@ -87,18 +87,31 @@ public class IOCore {
 
     // 由于正常情况Application已完成重定向，以下重定向是怕代码写死。
     public void enableRedirect(Context context) {
-        Map<String, String> rule = new LinkedHashMap<>();
-        String packageName = context.getPackageName();
-
         try {
-            ApplicationInfo packageInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName, PackageManager.GET_META_DATA, BActivityThread.getUserId());
-            rule.put("/data/data/" + packageName + "/lib", packageInfo.nativeLibraryDir);
-            rule.put("/data/user/0/" + packageName + "/lib", packageInfo.nativeLibraryDir);
+            ApplicationInfo packageInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA, BActivityThread.getUserId());
+            enableRedirect(context, packageInfo, BlackBoxCore.getContext().getExternalCacheDir() != null);
+        } catch (Exception e) {
+            e.printStackTrace();
+            VMCore.enableIO();
+        }
+    }
 
-            rule.put("/data/data/" + packageName, packageInfo.dataDir);
-            rule.put("/data/user/0/" + packageName, packageInfo.dataDir);
+    /**
+     * Redirect the guest's hard-coded data/lib/external paths into its sandbox dirs, then turn on
+     * the native IO hooks. {@code info} is the sandbox ApplicationInfo (dataDir/nativeLibraryDir
+     * already point inside our own storage).
+     */
+    public void enableRedirect(Context context, ApplicationInfo info, boolean hostHasExternal) {
+        Map<String, String> rule = new LinkedHashMap<>();
+        String packageName = info.packageName;
+        try {
+            rule.put("/data/data/" + packageName + "/lib", info.nativeLibraryDir);
+            rule.put("/data/user/0/" + packageName + "/lib", info.nativeLibraryDir);
 
-            if (BlackBoxCore.getContext().getExternalCacheDir() != null && context.getExternalCacheDir() != null) {
+            rule.put("/data/data/" + packageName, info.dataDir);
+            rule.put("/data/user/0/" + packageName, info.dataDir);
+
+            if (hostHasExternal && context.getExternalCacheDir() != null) {
                 File external = context.getExternalCacheDir().getParentFile();
 
                 // sdcard

@@ -19,7 +19,11 @@ char *replace(const char *str, const char *src, const char *dst) {
 
     size_t result_len = strlen(str) + (strlen(dst) - strlen(src)) * count + 1;
     char *result = (char *) malloc(result_len);
-    memset(result, 0, strlen(result));
+    if (result == nullptr) {
+        return nullptr;
+    }
+    // Zero the whole allocation: strlen() on fresh malloc'd memory reads uninitialised bytes.
+    memset(result, 0, result_len);
 
     const char *left = str;
     const char *right = nullptr;
@@ -41,7 +45,7 @@ const char *IO::redirectPath(const char *__path) {
         if (strstr(__path, info.targetPath) && !strstr(__path, "/virtual/")) {
             char *ret = replace(__path, info.targetPath, info.relocatePath);
             // ALOGD("redirectPath %s  => %s", __path, ret);
-            return ret;
+            return ret != nullptr ? ret : __path;
         }
     }
     return __path;

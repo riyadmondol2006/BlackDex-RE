@@ -1,61 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- Text-only rows (iconSpaceReserved=false) so titles align consistently across categories. -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory android:title="@string/appearance">
+    <PreferenceCategory
+        android:title="@string/appearance"
+        app:iconSpaceReserved="false">
         <ListPreference
-            android:icon="@drawable/ic_palette"
-            android:key="theme_mode"
-            android:title="@string/theme"
+            android:defaultValue="-1"
             android:entries="@array/theme_entries"
             android:entryValues="@array/theme_values"
-            android:defaultValue="-1" />
+            android:key="theme_mode"
+            android:title="@string/theme"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <SwitchPreferenceCompat
+            app:widgetLayout="@layout/preference_material_switch"
             android:key="dynamic_color"
+            android:summary="@string/dynamic_color_desc"
             android:title="@string/dynamic_color"
-            android:summary="@string/dynamic_color_desc" />
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <SwitchPreferenceCompat
-            android:icon="@drawable/ic_apps"
+            app:widgetLayout="@layout/preference_material_switch"
             android:key="show_system_apps"
+            android:summary="@string/show_system_apps_desc"
             android:title="@string/show_system_apps"
-            android:summary="@string/show_system_apps_desc" />
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/file_save">
+    <PreferenceCategory
+        android:title="@string/file_save"
+        app:iconSpaceReserved="false">
         <SwitchPreferenceCompat
+            app:widgetLayout="@layout/preference_material_switch"
             android:disableDependentsState="true"
-            android:icon="@drawable/ic_folder_open"
             android:key="save_enable"
             android:summary="@string/use_default_file_desc"
-            android:title="@string/use_default_file" />
+            android:title="@string/use_default_file"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
 
         <Preference
             android:dependency="save_enable"
             android:key="save_path"
-            android:title="@string/rewrite_file_path" />
+            android:title="@string/rewrite_file_path"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/advanced_setting">
+    <PreferenceCategory
+        android:title="@string/advanced_setting"
+        app:iconSpaceReserved="false">
         <SwitchPreferenceCompat
-            android:icon="@drawable/ic_code"
+            app:widgetLayout="@layout/preference_material_switch"
             android:key="hook_dump"
             android:summary="@string/hook_dump_desc"
-            android:title="@string/hook_dump" />
+            android:title="@string/hook_dump"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
         <SwitchPreferenceCompat
+            app:widgetLayout="@layout/preference_material_switch"
             android:key="fix_code_item"
             android:summary="@string/fix_code_item_desc"
-            android:title="@string/fix_code_item" />
+            android:title="@string/fix_code_item"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/about">
+    <PreferenceCategory
+        android:title="@string/about"
+        app:iconSpaceReserved="false">
         <Preference
-            android:icon="@drawable/ic_apps"
             android:key="about_version"
             android:selectable="false"
-            android:title="@string/version" />
+            android:title="@string/version"
+            app:iconSpaceReserved="false" />
         <Preference
             android:key="about_source"
+            android:summary="https://github.com/riyadmondol2006/BlackDex-RE"
             android:title="@string/open_source"
-            android:summary="https://github.com/riyadmondol2006/BlackDex-RE" />
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 
 </PreferenceScreen>

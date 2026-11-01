@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Top app bar: transparent so the AppBarLayout lift color shows through; M3 title + subtitle type. -->
+    <style name="Widget.BlackDex.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="titleTextAppearance">?attr/textAppearanceTitleLarge</item>
+        <item name="subtitleTextAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="subtitleTextColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Filled, pill-shaped M3 search field (no outline, no underline). -->
+    <style name="Widget.BlackDex.SearchField" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <item name="boxBackgroundColor">?attr/colorSurfaceContainerHigh</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxStrokeWidthFocused">0dp</item>
+        <item name="boxCornerRadiusTopStart">@dimen/search_field_corner</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/search_field_corner</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/search_field_corner</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/search_field_corner</item>
+        <item name="hintEnabled">false</item>
+        <item name="startIconTint">?attr/colorOnSurfaceVariant</item>
+        <item name="endIconTint">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="Widget.BlackDex.SearchField.EditText" parent="">
+        <item name="android:minHeight">@dimen/search_field_min_height</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColorHint">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Flat, selectable list row. -->
+    <style name="Widget.BlackDex.ListRow" parent="">
+        <item name="android:minHeight">@dimen/list_row_min_height</item>
+        <item name="android:paddingStart">@dimen/screen_gutter</item>
+        <item name="android:paddingEnd">@dimen/screen_gutter</item>
+        <item name="android:paddingTop">@dimen/list_row_vertical_padding</item>
+        <item name="android:paddingBottom">@dimen/list_row_vertical_padding</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <!-- Small non-interactive status label (e.g. detected packer). -->
+    <style name="Widget.BlackDex.StatusLabel" parent="">
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:paddingBottom">2dp</item>
+        <item name="android:minHeight">20dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:drawablePadding">4dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelMedium</item>
+        <item name="android:importantForAccessibility">yes</item>
+    </style>
+
+</resources>

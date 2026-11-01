@@ -61,9 +61,13 @@ Android 12. Every one of these was diagnosed on-device and fixed:
 
 ## New features
 
-- 🧱 **Single universal APK** — ships `arm64-v8a` + `armeabi-v7a`. No more two separate apps; the
-  install automatically runs guest apps in the device's native bitness, with a clear message when an
-  app needs the other architecture.
+- 🧱 **One install dumps both 64-bit and 32-bit apps** — upstream needed a separate 32-bit build for
+  apps that only ship `armeabi-v7a` code. RE runs those in a 32-bit runtime it starts itself
+  (`app_process32`, no root), so a single universal APK covers `arm64-v8a` *and* 32-bit-only apps.
+- 🔒 **Minimal permissions** — the ~180 permissions inherited from the VirtualApp sandbox (SMS, call
+  log, contacts, camera, mic, location, accounts, install/delete packages, …) are gone. None were
+  needed to dump dex, and together they made AV heuristics flag the APK as spyware. See
+  [Permissions](#permissions).
 - 🎨 **Material 3 UI remake** — dynamic **Material You** color, light/dark/system **theme picker**,
   live search, edge-to-edge, an SAF **"Open APK"** picker (no storage permission), new launcher icon.
 - 🛡️ **Packer / protection detection** — identifies the packer an app uses right in the list and
@@ -85,7 +89,8 @@ Android 12. Every one of these was diagnosed on-device and fixed:
 | Target | Result |
 |---|---|
 | **Normal / unprotected apps** | ✅ **Full dump** — verified on Android 17: Open Camera (7 MB, 5336 classes), LocalSend (Flutter), Caffeine |
-| **Packed apps** (360 Jiagu, Bangcle, Tencent, …) | ⚠️ **Partial** — captures everything reachable from the app's classloader chain. Some packers decrypt the real dex into a private/isolated classloader and will yield only the shell; fully following those needs a native class-load hook (planned). |
+| **Packed apps** (360 Jiagu, Bangcle, Tencent, …) | ⚠️ **Usually** — captures everything on the app's classloader chain **plus every dex the app opens through `DexFile`/`DexClassLoader`/`InMemoryDexClassLoader`**, so code a packer decrypts into a private child classloader is caught too. Packers that never hand the real dex to ART (or that crash in a sandbox, like some old 360 Jiagu builds on Android 17) still yield only the shell. |
+| **32-bit-only apps** (only `lib/armeabi-v7a`) | ✅ Dumped by the built-in **32-bit helper** on devices that still run 32-bit code (e.g. Pixel 6). Phones with a 64-bit-only userspace (Pixel 7 and newer) cannot run 32-bit code at all — those apps are hidden there. |
 | **VMP / Dex2C** — e.g. **Ijiami DexVMP** (MovieBox) | ❌ **Class structure only.** The real method bodies run on the packer's own native VM and are **not standard DEX bytecode**, so **no DEX dumper (root or not) can recover them** — that needs VMP devirtualization. RE flags these apps up-front with a **VMP** badge. |
 
 > The protection badges mean you always know *before* dumping what you'll get out of an app.
@@ -94,7 +99,7 @@ Android 12. Every one of these was diagnosed on-device and fixed:
 
 ## Build
 
-Requirements: JDK 17 (or 21), Android SDK with **NDK `27.0.12077973`** and **CMake `3.22.1`**.
+Requirements: JDK 17 or 21 (JDK 25 is too new for AGP 8.7), Android SDK with **NDK `27.0.12077973`** and **CMake `3.22.1`**.
 
 ```bash
 echo "sdk.dir=$ANDROID_HOME" > local.properties
@@ -118,14 +123,16 @@ better success on packers), *Deep unpacking* (restore in-memory code items; slow
 
 ## Architecture note (32-bit vs 64-bit)
 
-A process runs native code of exactly one bitness. From one install:
+A process runs native code of exactly one bitness, and Android starts all of an app's processes
+with the same ABI. RE works around that without a second app:
 
-- On a **64-bit device**: dumps 64-bit apps and pure-Java apps of any architecture.
+- **64-bit apps and pure-Java apps** are dumped in the normal 64-bit sandbox.
+- **32-bit-only apps** are dumped by a helper that RE starts with `/system/bin/app_process32` under
+  its own UID. It runs the target's `Application` standalone with the same IO redirect, anti-kill
+  and dump code, and reports back to the app, so the UI is identical.
+- On a **64-bit-only device** (no 32-bit userspace — Pixel 7+ and many 2024+ phones) 32-bit-only
+  apps can't run at all, so RE hides them and explains why if you open one as an APK.
 - On a **32-bit device**: dumps 32-bit apps and pure-Java apps.
-
-A 32-bit-**only** app that needs its native code at startup can't run inside a 64-bit host (and
-vice-versa) — a platform limitation, not a bug. RE detects this and tells you instead of failing
-silently, and only lists apps the current install can actually dump.
 
 ---
 
@@ -135,7 +142,24 @@ BlackDex installs the target into a private sandbox, spins up a pre-declared pro
 hijacks `ActivityThread` via reflection to build the target's `Application` inside that process,
 then a native library (`libblackdex.so`) walks the ART `DexFile` cookies and copies each DEX image
 out of memory. A packer that decrypts its real DEX at runtime therefore ends up writing that
-decrypted DEX to disk.
+decrypted DEX to disk. A JNI hook on `DexFile`'s native open functions also records every dex the
+app loads, so a dex hidden in a private classloader isn't missed.
+
+For 32-bit-only targets the same steps run inside a 32-bit `app_process32` helper (see
+[Architecture note](#architecture-note-32-bit-vs-64-bit)).
+
+## Permissions
+
+RE declares only what it uses:
+
+| Permission | Why |
+|---|---|
+| `QUERY_ALL_PACKAGES` | list installed apps to dump |
+| `READ/WRITE_EXTERNAL_STORAGE` (≤ Android 12 / 10), `MANAGE_EXTERNAL_STORAGE` | only if you pick a custom public output folder |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | keep the sandbox process alive during a dump |
+| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `WAKE_LOCK`, `VIBRATE` | install-time permissions that SDKs inside the *target* app touch during startup; without them the target crashes before its dex is dumped. RE itself makes no network requests. |
+
+No SMS, contacts, call log, camera, microphone, location or account permissions.
 
 ## Credits
 

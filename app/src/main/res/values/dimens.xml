@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Horizontal gutter for list rows, search field and toolbar content. -->
+    <dimen name="screen_gutter">16dp</dimen>
+    <dimen name="list_row_min_height">72dp</dimen>
+    <dimen name="list_row_icon">40dp</dimen>
+    <dimen name="list_row_vertical_padding">12dp</dimen>
+    <dimen name="search_field_corner">28dp</dimen>
+    <dimen name="search_field_min_height">56dp</dimen>
+
+    <dimen name="fab_margin">16dp</dimen>
+    <!-- Extended FAB container height (M3 spec). -->
+    <dimen name="fab_height">56dp</dimen>
+    <!-- Breathing room between the last list row and the FAB. -->
+    <dimen name="list_end_spacing">16dp</dimen>
+    <!-- Scroll distance before the extended FAB shrinks/extends. -->
+    <dimen name="fab_scroll_threshold">24dp</dimen>
+</resources>

@@ -69,6 +69,25 @@
     <string name="vmp_warning">⚠ Method-virtualized (VMP) — the dump will contain class structure but not the virtualized method bodies.</string>
 
     <!-- abi -->
+    <!-- ui refresh -->
+    <string name="main_subtitle">non-root · %1$s</string>
+    <string name="clear_search">Clear search</string>
+    <string name="navigate_up">Navigate up</string>
+    <string name="unpack">Unpack</string>
+    <string name="done">Done</string>
+    <string name="report_issue">Report issue</string>
+    <string name="copy_package_name">Copy package name</string>
+    <string name="package_name_copied">Copied %1$s</string>
+    <string name="protection_vmp_label">%1$s · VMP</string>
+    <string name="dump_progress_dex">Dumping dex (%1$d/%2$d)</string>
+    <string name="dump_finishing">Finishing…</string>
+    <string name="dump_busy">An unpack is already running.</string>
+    <string name="import_failed">Couldn\'t read the selected file.</string>
+    <string name="open_folder_failed">No app on this device can open the folder. Use Share to export the dump instead.</string>
+    <string name="preparing_share">Preparing share…</string>
+    <string name="share_chooser_title">Share dumped DEX</string>
+    <string name="share_failed">Couldn\'t package the dump for sharing.</string>
+
     <string name="abi_mismatch_title">Wrong architecture</string>
-    <string name="abi_mismatch_msg">This app only ships native libraries for a different CPU architecture. This install runs guest apps in %1$s, so it can only dump apps with matching native code (or pure-Java apps). Install BlackDex RE on a device of the other architecture to dump this one.</string>
+    <string name="abi_mismatch_msg">This app only ships native libraries for a CPU architecture this device cannot run (this install supports %1$s). Many newer phones have no 32-bit runtime at all, so 32-bit-only apps cannot be dumped on them. Try a device that still supports 32-bit apps.</string>
 </resources>

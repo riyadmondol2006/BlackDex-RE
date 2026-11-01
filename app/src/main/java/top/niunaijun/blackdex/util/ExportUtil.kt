@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
+import top.niunaijun.blackdex.R
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -44,18 +45,26 @@ object ExportUtil {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Share dumped DEX"))
+        context.startActivity(
+            Intent.createChooser(intent, context.getString(R.string.share_chooser_title))
+        )
     }
 
-    /** Try to open the dump folder in a file manager (best effort). */
-    fun openFolder(context: Context, dumpDir: File) {
-        runCatching {
+    /**
+     * Try to open the dump folder in a file manager (best effort).
+     *
+     * @return true if an app accepted the request; false if none could (most file managers
+     * cannot browse another app's private directory), so the caller can suggest Share instead.
+     */
+    fun openFolder(context: Context, dumpDir: File): Boolean {
+        return runCatching {
             val uri = FileProvider.getUriForFile(context, authority(context), dumpDir)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "resource/folder")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(intent)
-        }
+            true
+        }.getOrDefault(false)
     }
 }

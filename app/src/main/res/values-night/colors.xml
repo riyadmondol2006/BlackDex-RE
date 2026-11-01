@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Material 3 tonal scheme derived from the brand seed (#4C5EE0). -->
+    <color name="m3_primary">#BBC3FF</color>
+    <color name="m3_on_primary">#13248F</color>
+    <color name="m3_primary_container">#3142C6</color>
+    <color name="m3_on_primary_container">#DFE0FF</color>
+    <color name="m3_inverse_primary">#4C5EE0</color>
+
+    <color name="m3_secondary">#C4C5DD</color>
+    <color name="m3_on_secondary">#2D2F42</color>
+    <color name="m3_secondary_container">#434659</color>
+    <color name="m3_on_secondary_container">#E0E1F9</color>
+
+    <color name="m3_tertiary">#E6BAD7</color>
+    <color name="m3_on_tertiary">#45263E</color>
+    <color name="m3_tertiary_container">#5D3C55</color>
+    <color name="m3_on_tertiary_container">#FFD7F1</color>
+
+    <color name="m3_error">#FFB4AB</color>
+    <color name="m3_on_error">#690005</color>
+    <color name="m3_error_container">#93000A</color>
+    <color name="m3_on_error_container">#FFDAD6</color>
+
+    <color name="m3_background">#131318</color>
+    <color name="m3_on_background">#E4E1E9</color>
+    <color name="m3_surface">#131318</color>
+    <color name="m3_on_surface">#E4E1E9</color>
+    <color name="m3_surface_variant">#46464F</color>
+    <color name="m3_on_surface_variant">#C7C5D0</color>
+    <color name="m3_outline">#91909A</color>
+    <color name="m3_outline_variant">#46464F</color>
+    <color name="m3_inverse_surface">#E4E1E9</color>
+    <color name="m3_inverse_on_surface">#303036</color>
+
+    <color name="m3_surface_dim">#131318</color>
+    <color name="m3_surface_bright">#39383F</color>
+    <color name="m3_surface_container_lowest">#0E0E13</color>
+    <color name="m3_surface_container_low">#1B1B21</color>
+    <color name="m3_surface_container">#1F1F25</color>
+    <color name="m3_surface_container_high">#2A292F</color>
+    <color name="m3_surface_container_highest">#35343A</color>
+</resources>

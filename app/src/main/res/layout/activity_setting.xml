@@ -2,27 +2,32 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
     tools:context=".view.setting.SettingActivity">
 
+    <!-- The app bar is the single owner of the top (status bar) inset. -->
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true">
+        android:fitsSystemWindows="true"
+        app:liftOnScroll="true"
+        app:liftOnScrollTargetViewId="@id/recycler_view">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            app:navigationContentDescription="@string/navigate_up"
             app:navigationIcon="@drawable/ic_back"
             app:title="@string/app_setting" />
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- The fragment is added once in SettingActivity (no android:name here, to avoid a duplicate). -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/fragment"
-        android:name="top.niunaijun.blackdex.view.setting.SettingFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />

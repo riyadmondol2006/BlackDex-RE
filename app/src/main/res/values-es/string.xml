@@ -1,37 +1,74 @@
 <resources>
+    <string name="search_hint">Buscar aplicaciones</string>
+    <string name="empty_apps">No se encontraron aplicaciones para desempaquetar</string>
+    <string name="open_apk">Abrir APK</string>
     <string name="filter">Filtro</string>
     <string name="choose">Seleccionar</string>
     <string name="log">Logcat</string>
-    <string name="open_source">Codigo abierto</string>
+    <string name="open_source">Código abierto</string>
     <string name="app_setting">Configuración</string>
     <string name="unpack_success">Desempaquetado correctamente</string>
     <string name="unpack_fail">Desempaquetado fallido</string>
-    <string name="confirm">Confirmar</string>
-    <string name="github">Github</string>
-    <string name="jump_issue">Error desconocido, puede ser que la aplicación sea incompatible o que tenga una detección de entorno que cause la falla. Puede reportar el problema en GitHub(https://github.com/CodingGay/BlackDex).</string>
+    <string name="confirm">Aceptar</string>
+    <string name="github">GitHub</string>
+    <string name="jump_issue">Error desconocido. Es posible que la aplicación sea incompatible o que tenga detección de entorno que provoque el fallo. Puedes reportar el problema en GitHub (https://github.com/riyadmondol2006/BlackDex-RE/issues).</string>
     <string name="cancel">Cancelar</string>
-    <string name="dex_save">.dex los archivos se guardaron en: %1$s</string>
+    <string name="dex_save">Los archivos .dex se guardaron en:\n%1$s</string>
     <string name="error_msg">Error: %1$s</string>
-    <string name="grant_permission">Permiso Requerido</string>
-    <string name="request_again">Más tarde</string>
-    <string name="request_later">Later</string>
+    <string name="open_folder">Abrir carpeta</string>
+    <string name="share">Compartir</string>
+    <string name="grant_permission">Permiso requerido</string>
+    <string name="request_again">Reintentar</string>
+    <string name="request_later">Más tarde</string>
     <string name="jump_grant">Conceder permiso</string>
     <string name="request_fail">No se pudo otorgar el permiso.</string>
     <string name="denied_msg">Denegar el permiso de la aplicación para leer y escribir archivos locales desactivará esta función.</string>
     <string name="request_storage_msg">Esta aplicación no puede leer y escribir archivos locales correctamente sin el permiso requerido.</string>
 
+    <string name="appearance">Apariencia</string>
+    <string name="theme">Tema</string>
+    <string name="theme_system">Según el sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="dynamic_color">Colores dinámicos (Material You)</string>
+    <string name="dynamic_color_desc">Usa los colores de tu fondo de pantalla (Android 12 o posterior).</string>
+    <string name="show_system_apps">Mostrar aplicaciones del sistema</string>
+    <string name="show_system_apps_desc">Incluir las aplicaciones del sistema en la lista.</string>
+
     <string name="file_save">Archivo</string>
     <string name="use_default_file">Usar ruta de almacenamiento predeterminada</string>
+    <string name="use_default_file_desc">Guarda los dex extraídos en el directorio privado de la aplicación (no requiere permisos).</string>
     <string name="rewrite_file_path">Personaliza la ruta de almacenamiento</string>
     <string name="warn">Advertencia</string>
     <string name="advanced_setting">Ajustes avanzados</string>
+    <string name="about">Acerca de</string>
+    <string name="version">Versión</string>
     <string name="fix_code_item">Desempaquetado profundo</string>
     <string name="fix_code_item_desc">Cargue las instrucciones que se extrajeron en la memoria y restáurelas en DexFile.</string>
     <string name="fix_code_item_message">BlackDex arreglará el DexCode en modo de desempaquetado profundo. Es posible que ocurran los siguientes casos \n\n1.BlackDex tomará más tiempo para descomprimir una aplicación, se espera que tome unos minutos o más. \n2.Es posible que la aplicación de destino se bloquee cuando BlackDex la está desempaquetando (detección del entorno, etc.).\n3.Se incrementará la tasa de fallas al desempaquetar. \n4.Es posible que no siempre se solucionen todos los métodos correctamente.
     </string>
 
     <string name="dumping">Desempaquetando…</string>
+    <string name="dump_preparing">Iniciando el sandbox…</string>
     <string name="hook_dump_desc">Utilice el gancho para mejorar la tasa de éxito del desembalaje.</string>
     <string name="hook_dump">Volcado de gancho</string>
-  
+
+    <string name="main_subtitle">sin root · %1$s</string>
+    <string name="clear_search">Borrar búsqueda</string>
+    <string name="navigate_up">Navegar hacia arriba</string>
+    <string name="unpack">Desempaquetar</string>
+    <string name="done">Listo</string>
+    <string name="report_issue">Reportar problema</string>
+    <string name="copy_package_name">Copiar nombre del paquete</string>
+    <string name="package_name_copied">Se copió %1$s</string>
+    <string name="protection_vmp_label">%1$s · VMP</string>
+    <string name="dump_progress_dex">Extrayendo dex (%1$d/%2$d)</string>
+    <string name="dump_finishing">Finalizando…</string>
+    <string name="dump_busy">Ya hay un desempaquetado en curso.</string>
+    <string name="import_failed">No se pudo leer el archivo seleccionado.</string>
+    <string name="open_folder_failed">Ninguna aplicación de este dispositivo puede abrir la carpeta. Usa Compartir para exportar los archivos.</string>
+    <string name="preparing_share">Preparando para compartir…</string>
+    <string name="share_chooser_title">Compartir DEX extraídos</string>
+    <string name="share_failed">No se pudieron empaquetar los archivos para compartir.</string>
+
 </resources>

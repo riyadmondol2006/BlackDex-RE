@@ -1,26 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Body of the dump progress dialog; the title is supplied by MaterialAlertDialogBuilder. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingStart="24dp"
+    android:paddingTop="8dp"
     android:paddingEnd="24dp"
-    android:paddingTop="20dp"
-    android:paddingBottom="8dp">
-
-    <TextView
-        android:id="@+id/title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/dumping"
-        android:textAppearance="?attr/textAppearanceTitleLarge"
-        android:textColor="?attr/colorOnSurface" />
+    android:paddingBottom="16dp">
 
     <TextView
         android:id="@+id/status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:accessibilityLiveRegion="polite"
         android:text="@string/dump_preparing"
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:textColor="?attr/colorOnSurfaceVariant" />
@@ -29,10 +23,8 @@
         android:id="@+id/progress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
         android:indeterminate="true"
-        app:trackCornerRadius="8dp"
-        android:layout_marginBottom="8dp"
-        xmlns:app="http://schemas.android.com/apk/res-auto" />
+        app:trackCornerRadius="4dp" />
 
 </LinearLayout>

@@ -33,9 +33,11 @@ reverse-engineering quality-of-life features.
 
 ## Screenshots
 
+v4.1.0-RE on a Pixel 6 (Android 17), using the dark theme with dynamic colors.
+
 | App list + protection badges | Packer / VMP detection | Settings (Material You) |
 |---|---|---|
-| <img src="screenshots/main.png" width="240"/> | <img src="screenshots/packer_detection.png" width="240"/> | <img src="screenshots/settings.png" width="240"/> |
+| <img src="screenshots/main.png" width="240" alt="App list with protection badges"/> | <img src="screenshots/packer_detection.png" width="240" alt="Packer detection and VMP warning"/> | <img src="screenshots/settings.png" width="240" alt="Settings with Material 3 switches"/> |
 
 ---
 

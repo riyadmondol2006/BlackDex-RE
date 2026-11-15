@@ -386,8 +386,14 @@ public final class Abi32DumpMain {
         }
     }
 
+    /**
+     * Protocol lines are prefixed with a sentinel so that anything the guest app itself prints to
+     * stdout during onCreate() can never be mistaken for a PROGRESS/DONE/ERROR result.
+     */
+    static final String PROTOCOL_PREFIX = "@@BDX32@@ ";
+
     static synchronized void emit(String line) {
-        System.out.println(line);
+        System.out.println(PROTOCOL_PREFIX + line);
         System.out.flush();
     }
 

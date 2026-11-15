@@ -176,15 +176,27 @@ public final class Abi32Dumper {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("PROGRESS ")) {
-                        String[] parts = line.split(" ");
-                        if (parts.length == 3) {
-                            notice(result.dumpProcess(Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
-                        }
-                    } else if (line.startsWith("DONE") || line.startsWith("ERROR")) {
-                        terminal = line;
-                    } else {
+                    // Only sentinel-prefixed lines are protocol; everything else is guest/runtime
+                    // noise written to the same stdout and is just logged.
+                    int idx = line.indexOf(Abi32DumpMain.PROTOCOL_PREFIX);
+                    if (idx < 0) {
                         Log.d(TAG, "helper: " + line);
+                        continue;
+                    }
+                    String msg = line.substring(idx + Abi32DumpMain.PROTOCOL_PREFIX.length());
+                    if (msg.startsWith("PROGRESS ")) {
+                        String[] parts = msg.split(" ");
+                        if (parts.length == 3) {
+                            try {
+                                notice(result.dumpProcess(Integer.parseInt(parts[1]),
+                                        Integer.parseInt(parts[2])));
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    } else if (msg.startsWith("DONE") || msg.startsWith("ERROR")) {
+                        terminal = msg;
+                    } else {
+                        Log.d(TAG, "helper: " + msg);
                     }
                 }
             }

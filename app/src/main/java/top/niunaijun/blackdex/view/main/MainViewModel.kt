@@ -170,11 +170,14 @@ class MainViewModel(private val repo: DexDumpRepository) : BaseViewModel() {
         channel.observeForever(observer)
         repoChannel = channel to observer
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { repo.dumpDex(source, channel) }
-                .onFailure {
-                    it.printStackTrace()
-                    channel.postValue(DumpInfo(DumpInfo.FAIL, it.message ?: it.toString()))
-                }
+            try {
+                repo.dumpDex(source, channel)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce // let structured cancellation propagate (VM cleared / new op)
+            } catch (t: Throwable) {
+                t.printStackTrace()
+                channel.postValue(DumpInfo(DumpInfo.FAIL, t.message ?: t.toString()))
+            }
         }
     }
 
@@ -232,8 +235,8 @@ class MainViewModel(private val repo: DexDumpRepository) : BaseViewModel() {
         val state = _dumpState.value ?: return
         if (state.operationId != operationId || !state.isActive) return
         activeOperationId = NO_OPERATION
-        // Invalidate the repository's countdown so it cannot report this operation again.
-        repo.dumpSuccess()
+        // Detach the repository channel so its fallback poll can no longer report this operation;
+        // the suspend dumpDex() itself is cancelled with viewModelScope when the VM is cleared.
         repoChannel?.let { (channel, observer) -> channel.removeObserver(observer) }
         repoChannel = null
         _dumpState.value = update(state)
